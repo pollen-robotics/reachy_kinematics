@@ -26,7 +26,7 @@ class Actuator(object):
     def __init__(self,
                  Pc_z=[0, 0, 89.4],
                  Cp_z=[0, 0, 64.227], R=39.162,
-                 R0= np.dot(rot('z', 60), rot('y', 10))):
+                 R0=np.dot(rot('z', 60), rot('y', 10))):
         self.Pc_z = np.array(Pc_z)
         self.Cp_z = np.array(Cp_z)
         self.R = R
