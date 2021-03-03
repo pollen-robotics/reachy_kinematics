@@ -12,10 +12,10 @@ jobs:
           linter: [flake8, mypy, pep257, pep8, xmllint]
     steps:
     - uses: actions/checkout@v2
-    - uses: ros-tooling/setup-ros@0.1.1
+    - uses: ros-tooling/setup-ros@0.1.2
       with:
         required-ros-distributions: foxy
-    - uses: ros-tooling/action-ros-lint@0.1.1
+    - uses: ros-tooling/action-ros-lint@0.1.2
       with:
         linter: ${{ matrix.linter }}
         package-name: reachy_kinematics
