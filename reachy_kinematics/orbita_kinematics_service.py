@@ -7,14 +7,18 @@ from reachy_msgs.srv import GetOrbitaIK, GetQuaternionTransform
 from .orbita_kinematics import OrbitaKinSolver
 
 
-class OrbitaKinService(Node):
+class OrbitaKinematicsService(Node):
     def __init__(self):
         super().__init__('orbita_kinematics_service')
-        self.kin_solver = OrbitaKinSolver()
-        self.ik_service = self.create_service(GetOrbitaIK, 'orbita_ik', self.ik_callback)
-        self.orbita_look_at_tf_service = self.create_service(GetQuaternionTransform, 'orbita_look_at_tf', self.quat_tf_callback)
         self.logger = self.get_logger()
-        self.logger.info('Initialized OrbitaKiService.')
+        self.kin_solver = OrbitaKinSolver()
+        self.ik_service = self.create_service(GetOrbitaIK, 'orbita/kinematics/inverse', self.ik_callback)
+        self.logger.info(f'Starting service "{self.ik_service.srv_name}".')
+        self.orbita_look_at_tf_service = self.create_service(GetQuaternionTransform, 'orbita/kinematics/look_vector_to_quaternion', self.vec2quat_callback)
+        self.logger.info(f'Starting service "{self.orbita_look_at_tf_service.srv_name}".')
+
+        self.logger.info('Node ready!')
+
 
     def ik_callback(self, request, response):
         '''
@@ -23,7 +27,6 @@ class OrbitaKinService(Node):
         response:
             - sensor_msgs/JointState disk_pos
         '''
-        self.logger.debug(f'Received request ik: {request.quat}')
         try:
             response.disk_pos = self.kin_solver.orbita_ik(request.quat)
             response.success = True
@@ -32,7 +35,7 @@ class OrbitaKinService(Node):
             response.success = False
         return response
 
-    def quat_tf_callback(self, request, response):
+    def vec2quat_callback(self, request, response):
         response.quat = self.kin_solver.find_quaternion_transform(request.point)
         return response
 
@@ -40,7 +43,7 @@ class OrbitaKinService(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    orb_kin_service = OrbitaKinService()
+    orb_kin_service = OrbitaKinematicsService()
 
     rclpy.spin(orb_kin_service)
 

@@ -18,9 +18,9 @@ from reachy_msgs.srv import GetArmFK, GetArmIK
 from .kinematics import generate_solver, forward_kinematics, inverse_kinematics
 
 
-class ReachyArmKinematicService(Node):
+class ArmKinematicsService(Node):
     def __init__(self) -> None:
-        super().__init__('reachy_arm_kinematics_service')
+        super().__init__('arm_kinematics_service')
         self.logger = self.get_logger()
 
         self.retrieve_urdf()
@@ -29,19 +29,19 @@ class ReachyArmKinematicService(Node):
         for side in ('left', 'right'):
             srv = self.create_service(
                 srv_type=GetArmFK,
-                srv_name=f'/reachy_{side}_arm_kinematics_service/forward',
+                srv_name=f'/{side}_arm/kinematics/forward',
                 callback=partial(self.arm_fk, side=side, solver=fk_solvers[side], nb_joints=chains[side].getNrOfJoints()),
             )
             self.logger.info(f'Starting service "{srv.srv_name}".')
 
             srv = self.create_service(
                 srv_type=GetArmIK,
-                srv_name=f'/reachy_{side}_arm_kinematics_service/inverse',
+                srv_name=f'/{side}_arm/kinematics/inverse',
                 callback=partial(self.arm_ik, side=side, solver=ik_solvers[side], nb_joints=chains[side].getNrOfJoints()),
             )
             self.logger.info(f'Starting service "{srv.srv_name}".')
 
-        self.logger.info(f'Node ready!')
+        self.logger.info('Node ready!')
 
     def arm_fk(self, request: GetArmFK.Request, response: GetArmFK.Response, side: str, solver, nb_joints: int) -> GetArmFK.Response:
         joints = self.joint_state_as_list(request.joint_position, side)
@@ -57,7 +57,6 @@ class ReachyArmKinematicService(Node):
         return response
 
     def arm_ik(self, request: GetArmIK.Request, response: GetArmIK.Response, side: str, solver, nb_joints: int) -> GetArmIK.Response:
-        # self.logger.info(f'IK req {request} {side} {nb_joints}')
         if request.q0.position:
             q0 = self.joint_state_as_list(request.q0, side)
 
@@ -137,8 +136,8 @@ class ReachyArmKinematicService(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    reachy_arm_kinematics_service = ReachyArmKinematicService()
-    rclpy.spin(reachy_arm_kinematics_service)
+    arm_kinematics_service = ArmKinematicsService()
+    rclpy.spin(arm_kinematics_service)
 
     rclpy.shutdown()
 
