@@ -51,6 +51,7 @@ class ArmKinematicsService(Node):
         res, M = forward_kinematics(solver, request.joint_position.position, nb_joints)
         q = Rotation.from_matrix(M[:3, :3]).as_quat()
 
+        response.success = True
         response.pose.position = Point(x=M[0, 3], y=M[1, 3], z=M[2, 3])
         response.pose.orientation = Quaternion(x=q[0], y=q[1], z=q[2], w=q[3])
 
