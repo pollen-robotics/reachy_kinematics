@@ -3,9 +3,12 @@
 <package format="3">
   <name>reachy_kinematics</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
-  <maintainer email="simheo0@gmail.com">nuc</maintainer>
-  <license>TODO: License declaration</license>
+  <description>ROS2 packages for Reachy kinematics.</description>
+  <maintainer email="contact@pollen-robotics.com">Pollen Robotics</maintainer>
+  <license>Apache-2.0 License</license>
+
+  <depend>rclpy</depend>
+  <depend>robot_state_publisher</depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
