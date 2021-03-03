@@ -21,6 +21,8 @@ setup(
         ]),
 
         (os.path.join('share', package_name, 'meshes'), glob('meshes/*.dae')),
+
+        (os.path.join('share', package_name), ['reachy.rviz']),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
