@@ -22,7 +22,7 @@ setup(
 
         (os.path.join('share', package_name, 'meshes'), glob('meshes/*.dae')),
     ],
-    install_requires=['setuptools', 'numpy'],
+    install_requires=['setuptools', 'numpy', 'pyquaternion', 'scipy>=1.5'],
     zip_safe=True,
     maintainer='Pollen Robotics',
     maintainer_email='contact@pollen-robotics.com',
@@ -31,7 +31,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'arm_kinematics_service = reachy_kinematics.arm_kinematics_service:main'
+            'arm_kinematics_service = reachy_kinematics.arm_kinematics_service:main',
+            'orbita_kinematics_service = reachy_kinematics.orbita_kinematics_service:main',
         ],
     },
 )
