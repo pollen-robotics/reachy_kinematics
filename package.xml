@@ -7,8 +7,10 @@
   <maintainer email="contact@pollen-robotics.com">Pollen Robotics</maintainer>
   <license>Apache-2.0 License</license>
 
-  <depend>rclpy</depend>
-  <depend>robot_state_publisher</depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+
+  <exec_depend>reachy_msgs</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
