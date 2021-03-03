@@ -18,12 +18,12 @@ colcon build --packages-select reachy_kinematics
 
 
 ## Published topics
----
+
 * **/robot_description**  (std_msgs/msg/String) - Description of Reachy's URDF as a string. Needed by the arm kinematics computation. </br> More information can be found on the [robot_state_publisher GitHub](https://github.com/ros/robot_state_publisher/tree/foxy).
 
 
 ## Services
----
+
 * **/left_arm/kinematics/forward** ([reachy_msgs/srv/GetArmFK.srv](https://github.com/pollen-robotics/reachy_msgs/blob/master/srv/GetArmFK.srv)) - Compute the forward kinematics for the given positions of left arm motors. Returns the pose in the robot frame of the joint at the end of the requested kinematic chain.
 
 * **/left_arm/kinematics/inverse** ([reachy_msgs/srv/GetArmIK.srv](https://github.com/pollen-robotics/reachy_msgs/blob/master/srv/GetArmIK.srv)) - Compute the inverse kinematics for the requested joint pose in a left arm kinematic chain. Returns the joints goal positions to reachy the joint pose.
