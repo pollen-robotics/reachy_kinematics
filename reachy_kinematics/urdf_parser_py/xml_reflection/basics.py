@@ -1,3 +1,5 @@
+# flake8: noqa
+
 import string
 import yaml
 import collections
