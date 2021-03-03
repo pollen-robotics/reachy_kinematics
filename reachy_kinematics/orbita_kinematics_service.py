@@ -19,10 +19,9 @@ class OrbitaKinematicsService(Node):
 
         self.logger.info('Node ready!')
 
-
     def ik_callback(self, request, response):
         '''
-        request: 
+        request:
             - geometry_msgs/Quaternion quat
         response:
             - sensor_msgs/JointState disk_pos

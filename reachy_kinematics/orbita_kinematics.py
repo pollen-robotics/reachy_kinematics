@@ -33,5 +33,5 @@ class OrbitaKinSolver(object):
         return disks
 
     def find_quaternion_transform(self, point: Point) -> Quaternion:
-        quat = self.orbita.find_quaternion_transform([1,0,0], [point.x, point.y, point.z])
+        quat = self.orbita.find_quaternion_transform([1, 0, 0], [point.x, point.y, point.z])
         return Quaternion(x=quat.x, y=quat.y, z=quat.z, w=quat.w)
