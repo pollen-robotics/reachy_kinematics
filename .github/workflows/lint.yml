@@ -15,7 +15,7 @@ jobs:
     - uses: ros-tooling/setup-ros@0.1.2
       with:
         required-ros-distributions: foxy
-    - uses: ros-tooling/action-ros-lint@0.1.2
+    - uses: ros-tooling/action-ros-lint@0.1.1
       with:
         linter: ${{ matrix.linter }}
         package-name: reachy_kinematics
