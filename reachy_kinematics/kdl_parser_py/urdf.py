@@ -1,5 +1,3 @@
-# flake8: noqa
-
 import PyKDL as kdl
 
 from ..urdf_parser_py import urdf

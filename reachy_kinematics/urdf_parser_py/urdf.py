@@ -1,5 +1,3 @@
-# flake8: noqa
-
 from .xml_reflection.basics import *
 from . import xml_reflection as xmlr
 
