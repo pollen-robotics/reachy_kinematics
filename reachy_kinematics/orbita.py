@@ -1,3 +1,6 @@
+"""Orbita theoretical model."""
+from typing import Tuple
+
 import numpy as np
 
 from pyquaternion import Quaternion
@@ -12,6 +15,8 @@ def rot(axis, deg):
 
 class Actuator(object):
     """
+    Orbita theoretical model.
+
     This actuator is composed of three disks, linked to three arms and a
     platform in the end. The goal is to orientate the platform, so the disks do
     a rotation following a circle called "proximal circle".
@@ -24,9 +29,11 @@ class Actuator(object):
     """
 
     def __init__(self,
-                 Pc_z=[0, 0, 89.4],
-                 Cp_z=[0, 0, 64.227], R=39.162,
-                 R0=np.dot(rot('z', 60), rot('y', 10))):
+                 Pc_z: Tuple[float, float, float] = (0, 0, 89.4),
+                 Cp_z: Tuple[float, float, float] = (0, 0, 64.227),
+                 R: float = 39.162,
+                 R0: np.ndarray = np.dot(rot('z', 60), rot('y', 10))):
+        """Create a new actuator with the given disks configuration."""
         self.Pc_z = np.array(Pc_z)
         self.Cp_z = np.array(Cp_z)
         self.R = R
@@ -39,10 +46,10 @@ class Actuator(object):
         self.last_angles = np.array([0, 2 * np.pi / 3, -2 * np.pi / 3])
         self.offset = np.array([0, 0, 0])
 
-    def get_new_frame_from_vector(self, vector, angle=0):
+    def get_new_frame_from_vector(self, vector: np.ndarray, angle: float = 0) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        Compute the coordinates of the vectors of a new frame whose Z axis is
-        the chosen vector
+        Compute the coordinates of the vectors of a new frame whose Z axis is the chosen vector.
+
         Parameters
         ----------
         vector : array_like
@@ -58,8 +65,8 @@ class Actuator(object):
             New Y vector of the platform's frame
         Z : array_like
             New Z vector of the platform's frame
-        """
 
+        """
         beta = np.deg2rad(angle)
 
         # GOAL VECTOR (the desired Z axis)
@@ -142,10 +149,9 @@ class Actuator(object):
         )
         return q3, q1
 
-    def get_angles_from_vector(self, vector, angle=0):  # noqa: C901
-        """
-        Compute the angles of the disks needed to rotate the platform to the
-        new frame, using the get_new_frame_from_vector function.
+    def get_angles_from_vector(self, vector: np.ndarray, angle: float = 0) -> Tuple[float, float, float]:  # noqa: C901
+        """Compute the angles of the disks needed to rotate the platform to the new frame, using the get_new_frame_from_vector function.
+
         The expression of q3 and q1 angles are found with the notebook
         spherical_symbolic.ipynb
         Parameters
@@ -163,8 +169,8 @@ class Actuator(object):
             angle of the middle disk in degrees
         q13 : float
             angle of the bottom disk in degrees
-        """
 
+        """
         get_frame = self.get_new_frame_from_vector
 
         q31_0, q11_0 = self._eq(*get_frame(vector, 0))
@@ -217,10 +223,9 @@ class Actuator(object):
 
         return q11, q12, q13
 
-    def get_new_frame_from_quaternion(self, qw, qx, qy, qz):
-        """
-        Compute the coordinates of the vectors of a new frame got by a rotation
-        represented by a quaternion
+    def get_new_frame_from_quaternion(self, qw: float, qx: float, qy: float, qz: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Compute the coordinates of the vectors of a new frame got by a rotation represented by a quaternion.
+
         Parameters
         ----------
         qw : float
@@ -239,8 +244,8 @@ class Actuator(object):
             New Y vector of the platform's frame
         Z : array_like
             New Z vector of the platform's frame
-        """
 
+        """
         q1 = Quaternion(qw, qx, qy, qz)
         q1_inv = q1.inverse
 
@@ -255,10 +260,9 @@ class Actuator(object):
         return X, Y, Z
 
     # FIXME: too complex
-    def get_angles_from_quaternion(self, qw, qx, qy, qz):  # noqa: C901
-        """
-        Compute the angles of the disks needed to rotate the platform to the
-        new frame, using the get_new_frame_from_vector function.
+    def get_angles_from_quaternion(self, qw: float, qx: float, qy: float, qz: float) -> Tuple[float, float, float]:  # noqa: C901
+        """Compute the angles of the disks needed to rotate the platform to the new frame, using the get_new_frame_from_vector function.
+
         The expression of q3 and q1 angles are found with the notebook
         spherical_symbolic.ipynb
         Parameters
@@ -279,8 +283,8 @@ class Actuator(object):
             angle of the middle disk in degrees
         q13 : float
             angle of the bottom disk in degrees
-        """
 
+        """
         def get_frame(q):
             return self.get_new_frame_from_quaternion(q.w, q.x, q.y, q.z)
 
@@ -335,7 +339,8 @@ class Actuator(object):
             np.rad2deg(q13) + 120,
         )
 
-    def find_quaternion_transform(self, vect_origin, vect_target):
+    def find_quaternion_transform(self, vect_origin: np.ndarray, vect_target: np.ndarray) -> Quaternion:
+        """Find the quaternion to transform the vector origin to the target one."""
         vo = np.array(vect_origin)
         if np.any(vo):
             vo = vo / LA.norm(vo)
