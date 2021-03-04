@@ -1,1 +1,5 @@
-from .kinematics import inverse_kinematics, forward_kinematics  # noqa: F401
+"""
+ROS2 package publishing the /robot_description of Reachy using its URDF and creating the services handling the kinematics of both arms and Orbita actuator.
+
+See README.md for details.
+"""

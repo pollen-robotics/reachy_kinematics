@@ -1,3 +1,8 @@
+"""ROS2 Foxy package for Reachy arm kinematics.
+
+See README.md for details on the services exposed.
+
+"""
 from functools import partial
 from typing import List
 
@@ -19,7 +24,10 @@ from .kinematics import generate_solver, forward_kinematics, inverse_kinematics
 
 
 class ArmKinematicsService(Node):
+    """Node exposing the reachy arm kinematics services."""
+
     def __init__(self) -> None:
+        """Set up the node."""
         super().__init__('arm_kinematics_service')
         self.logger = self.get_logger()
 
@@ -44,7 +52,8 @@ class ArmKinematicsService(Node):
         self.logger.info('Node ready!')
 
     def arm_fk(self, request: GetArmFK.Request, response: GetArmFK.Response, side: str, solver, nb_joints: int) -> GetArmFK.Response:
-        joints = self.joint_state_as_list(request.joint_position, side)
+        """Compute the forward arm kinematics given the request."""
+        joints = self._joint_state_as_list(request.joint_position, side)
         if len(joints) != nb_joints:
             return response
 
@@ -58,8 +67,9 @@ class ArmKinematicsService(Node):
         return response
 
     def arm_ik(self, request: GetArmIK.Request, response: GetArmIK.Response, side: str, solver, nb_joints: int) -> GetArmIK.Response:
+        """Compute the inverse arm kinematics given the request."""
         if request.q0.position:
-            q0 = self.joint_state_as_list(request.q0, side)
+            q0 = self._joint_state_as_list(request.q0, side)
 
             if len(q0) != nb_joints:
                 self.logger.warning(f'Wrong number of joints provided ({len(q0)} instead of {nb_joints})!')
@@ -81,6 +91,7 @@ class ArmKinematicsService(Node):
         return response
 
     def get_arm_joints_name(self, side: str) -> List[str]:
+        """Return the list of joints name for the specified arm."""
         side = 'l' if side == 'left' else 'r'
 
         return [
@@ -94,9 +105,13 @@ class ArmKinematicsService(Node):
         ]
 
     def get_default_q0(self, side: str) -> List[float]:
+        """Return the default position value for the joints of the specified arm.
+
+        The default position corresponds to Reachy with a straight arm and the elbow flexed at 90 degrees.
+        """
         return [0, 0, 0, -np.pi / 2, 0, 0, 0]
 
-    def joint_state_as_list(self, joint_state: JointState, side: str) -> List[float]:
+    def _joint_state_as_list(self, joint_state: JointState, side: str) -> List[float]:
         joint_names = self.get_arm_joints_name(side)
         if len(joint_state.position) != len(joint_names):
             self.logger.warning(f'Wrong number of joints provided ({len(joint_state.position)} instead of {len(joint_names)})!')
@@ -113,6 +128,10 @@ class ArmKinematicsService(Node):
             return joint_state.position
 
     def retrieve_urdf(self, timeout_sec: float = 5) -> None:
+        """Retrieve the URDF file from the /robot_description topic.
+
+        Will raise an EnvironmentError if the topic is unavailable.
+        """
         self.logger.info('Retrieving URDF from "/robot_description"...')
 
         qos_profile = QoSProfile(depth=1)
@@ -135,6 +154,7 @@ class ArmKinematicsService(Node):
 
 
 def main(args=None):
+    """Run main entry point."""
     rclpy.init(args=args)
 
     arm_kinematics_service = ArmKinematicsService()

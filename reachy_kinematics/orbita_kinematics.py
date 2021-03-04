@@ -1,6 +1,5 @@
-'''
-Compute Orbita's FK and IK.
-'''
+"""Kinematics solver for Orbita Actuator."""
+
 import numpy as np
 
 from sensor_msgs.msg import JointState
@@ -13,16 +12,20 @@ d_names = ['disk_top, disk_middle, disk_bottom']
 
 
 class OrbitaKinSolver(object):
-    '''Orbita kinematic solver.'''
+    """Kinematics solver class."""
+
     def __init__(self) -> None:
+        """Set up the class."""
         self.disks_names = ['disk_top, disk_middle, disk_bottom']
         self.orbita = Actuator()
 
     def orbita_ik(self, quat: Quaternion) -> JointState:
-        '''Compute IK.'''
+        """Compute inverse kinematics for Orbita.
+
+        Return the disks goal positions to reach the given quaternion.
+        """
         disks = JointState()
         disks.name = self.disks_names
-        # Use get angles from queternion
         thetas = self.orbita.get_angles_from_quaternion(
             quat.w,
             quat.x,
@@ -33,5 +36,6 @@ class OrbitaKinSolver(object):
         return disks
 
     def find_quaternion_transform(self, point: Point) -> Quaternion:
+        """Transform given goal point into a quaternion."""
         quat = self.orbita.find_quaternion_transform([1, 0, 0], [point.x, point.y, point.z])
         return Quaternion(x=quat.x, y=quat.y, z=quat.z, w=quat.w)
