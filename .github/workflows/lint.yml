@@ -18,5 +18,4 @@ jobs:
     - uses: ros-tooling/action-ros-lint@0.1.1
       with:
         linter: ${{ matrix.linter }}
-        arguments: '--config lint/${{ maxtrix.linter }}.ini'
         package-name: reachy_kinematics
