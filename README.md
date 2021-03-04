@@ -28,7 +28,7 @@ colcon build --packages-select reachy_kinematics
 
 * **/left_arm/kinematics/inverse** ([reachy_msgs/srv/GetArmIK.srv](https://github.com/pollen-robotics/reachy_msgs/blob/master/srv/GetArmIK.srv)) - Compute the inverse kinematics for the requested joint pose in a left arm kinematic chain. Returns the joints goal positions to reachy the joint pose.
 
-* **/right_arm/kinematics/forward** ([reachy_msgs/srv/GetArmFK.srv)](https://github.com/pollen-robotics/reachy_msgs/blob/master/srv/GetArmFK.srv)) - Compute the forward kinematics for the given positions of right arm motors. Returns the pose in the robot frame of the joint at the end of the requested kinematic chain.
+* **/right_arm/kinematics/forward** ([reachy_msgs/srv/GetArmFK.srv](https://github.com/pollen-robotics/reachy_msgs/blob/master/srv/GetArmFK.srv)) - Compute the forward kinematics for the given positions of right arm motors. Returns the pose in the robot frame of the joint at the end of the requested kinematic chain.
 
 * **/right_arm/kinematics/inverse** ([reachy_msgs/srv/GetArmIK.srv](https://github.com/pollen-robotics/reachy_msgs/blob/master/srv/GetArmIK.srv)) - Compute the inverse kinematics for the requested joint pose in a right arm kinematic chain. Returns the joints goal positions to reachy the joint pose.
 
