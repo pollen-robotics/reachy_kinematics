@@ -1,10 +1,14 @@
+"""Compute the kinematics of Reachy's arm using the KDL library and its URDF definition."""
+from typing import Tuple
+
 import numpy as np
 import PyKDL as kdl
 
 from .kdl_parser_py import urdf
 
 
-def generate_solver(urdf_str):
+def generate_solver(urdf_str: str):
+    """Create an FK/IK solvers for each arm (left/right)."""
     success, urdf_tree = urdf.treeFromString(urdf_str)
     if not success:
         raise IOError('Could not parse the URDF!')
@@ -27,7 +31,11 @@ def generate_solver(urdf_str):
     return chains, fk_solvers, ik_solvers
 
 
-def forward_kinematics(fk_solver, joints, nb_joints):
+def forward_kinematics(fk_solver, joints: np.ndarray, nb_joints: int) -> Tuple[float, np.ndarray]:
+    """Compute the forward kinematics of the given arm.
+
+    The function assumes the number of joints is correct!
+    """
     q = kdl.JntArray(nb_joints)
     for i, j in enumerate(joints):
         q[i] = j
@@ -44,7 +52,11 @@ def forward_kinematics(fk_solver, joints, nb_joints):
     return res, M
 
 
-def inverse_kinematics(ik_solver, q0, target_pose, nb_joints):
+def inverse_kinematics(ik_solver, q0: np.ndarray, target_pose: np.ndarray, nb_joints: int) -> Tuple[float, np.ndarray]:
+    """Compute the inverse kinematics of the given arm.
+
+    The function assumes the number of joints is correct!
+    """
     x, y, z = target_pose[:3, 3]
     R = target_pose[:3, :3].flatten().tolist()
 
