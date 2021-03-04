@@ -1,4 +1,8 @@
-'''Doc.'''
+"""ROS2 Foxy package for Reachy orbita kinematics.
+
+See README.md for details on the services exposed.
+
+"""
 import rclpy
 from rclpy.node import Node
 
@@ -8,7 +12,10 @@ from .orbita_kinematics import OrbitaKinSolver
 
 
 class OrbitaKinematicsService(Node):
+    """Node exposing the reachy orbita kinematics services."""
+
     def __init__(self):
+        """Set up the node."""
         super().__init__('orbita_kinematics_service')
         self.logger = self.get_logger()
         self.kin_solver = OrbitaKinSolver()
@@ -19,13 +26,8 @@ class OrbitaKinematicsService(Node):
 
         self.logger.info('Node ready!')
 
-    def ik_callback(self, request, response):
-        '''
-        request:
-            - geometry_msgs/Quaternion quat
-        response:
-            - sensor_msgs/JointState disk_pos
-        '''
+    def ik_callback(self, request: GetOrbitaIK.Request, response: GetOrbitaIK.Response):
+        """Compute the inverse kinematics for orbita given the request."""
         try:
             response.disk_pos = self.kin_solver.orbita_ik(request.quat)
             response.success = True
@@ -34,12 +36,14 @@ class OrbitaKinematicsService(Node):
             response.success = False
         return response
 
-    def vec2quat_callback(self, request, response):
+    def vec2quat_callback(self, request: GetQuaternionTransform.Request, response: GetQuaternionTransform.Response):
+        """Return the quaternion for the given look vector."""
         response.quat = self.kin_solver.find_quaternion_transform(request.point)
         return response
 
 
 def main(args=None):
+    """Run main entry point."""
     rclpy.init(args=args)
 
     orb_kin_service = OrbitaKinematicsService()
