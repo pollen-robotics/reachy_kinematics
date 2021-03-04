@@ -4,15 +4,9 @@ on: [push]
 jobs:
   lint:
     runs-on: ubuntu-latest
-    container:
-      image: ubuntu:focal
-    strategy:
-      fail-fast: false
-      matrix:
-          linter: [flake8]
     steps:
     - uses: actions/checkout@v2
-    - uses: ros-tooling/setup-python@v2
+    - uses: actions/setup-python@v2
       with:
         python-versions: '3.8'
 
