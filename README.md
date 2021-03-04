@@ -19,7 +19,7 @@ colcon build --packages-select reachy_kinematics
 
 ## Published topics
 
-* **/robot_description**  (std_msgs/msg/String) - Description of Reachy's URDF as a string. Needed by the arm kinematics computation. </br> More information can be found on the [robot_state_publisher GitHub](https://github.com/ros/robot_state_publisher/tree/foxy).
+* **/robot_description**  ([std_msgs/msg/String](http://docs.ros.org/en/melodic/api/std_msgs/html/msg/String.html)) - Description of Reachy's URDF as a string. Needed by the arm kinematics computation. </br> More information can be found on the [robot_state_publisher GitHub](https://github.com/ros/robot_state_publisher/tree/foxy).
 
 
 ## Services
