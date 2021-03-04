@@ -20,7 +20,7 @@ from std_msgs.msg import String
 
 from reachy_msgs.srv import GetArmFK, GetArmIK
 
-from .arm_kinematics import generate_solver, forward_kinematics, inverse_kinematics
+from .kinematics import generate_solver, forward_kinematics, inverse_kinematics
 
 
 class ArmKinematicsService(Node):
