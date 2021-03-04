@@ -36,6 +36,13 @@ colcon build --packages-select reachy_kinematics
 
 * **/orbita/kinematics/look_vector_to_quaternion** ([reachy_msgs/srv/GetQuaternionTransform.srv](https://github.com/pollen-robotics/reachy_msgs/blob/master/srv/GetQuaternionTransform.srv)) - Compute the quaternion corresponding to the target point in the look at instruction. 
 
+## Launch files
+
+* **description.launch.py** - Publish Reachy's urdf in /robot_description, needed by the arm kinematics solver.
+* **arm_kinematics.launch.py** - Launch the two kinematics services for Reachy's arms.
+* **orbita_kinematics_service.launch.py** - Launch the two kinematics services for Orbita.
+* **kinematics.launch.py** - Start the three launch files at once.
+
 ---
 This package is part of the ROS2-based software release of the version 2021 of Reachy.
 
