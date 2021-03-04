@@ -44,8 +44,14 @@ class ArmKinematicsService(Node):
         self.logger.info('Node ready!')
 
     def arm_fk(self, request: GetArmFK.Request, response: GetArmFK.Response, side: str, solver, nb_joints: int) -> GetArmFK.Response:
-        joints = self.joint_state_as_list(request.joint_position, side)
+        try:
+            joints = self.joint_state_as_list(request.joint_position, side)
+        except ValueError:
+            response.success = False
+            return response
+
         if len(joints) != nb_joints:
+            response.success = False
             return response
 
         res, M = forward_kinematics(solver, request.joint_position.position, nb_joints)
@@ -59,10 +65,15 @@ class ArmKinematicsService(Node):
 
     def arm_ik(self, request: GetArmIK.Request, response: GetArmIK.Response, side: str, solver, nb_joints: int) -> GetArmIK.Response:
         if request.q0.position:
-            q0 = self.joint_state_as_list(request.q0, side)
+            try:
+                q0 = self.joint_state_as_list(request.q0, side)
+            except ValueError:
+                response.success = False
+                return response
 
             if len(q0) != nb_joints:
                 self.logger.warning(f'Wrong number of joints provided ({len(q0)} instead of {nb_joints})!')
+                response.success = False
                 return response
         else:
             q0 = self.get_default_q0(side)
@@ -75,6 +86,7 @@ class ArmKinematicsService(Node):
 
         res, J = inverse_kinematics(solver, q0, M, nb_joints)
 
+        response.success = True
         response.joint_position.name = self.get_arm_joints_name(side)
         response.joint_position.position = list(J)
 
