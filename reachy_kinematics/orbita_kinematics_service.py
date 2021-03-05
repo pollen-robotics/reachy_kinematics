@@ -8,7 +8,7 @@ from rclpy.node import Node
 
 from reachy_msgs.srv import GetOrbitaIK, GetQuaternionTransform
 
-from .orbita_kinematics import OrbitaKinSolver
+from .orbita_kinematics import OrbitaKinematicsSolver
 
 
 class OrbitaKinematicsService(Node):
@@ -18,7 +18,7 @@ class OrbitaKinematicsService(Node):
         """Set up the node."""
         super().__init__('orbita_kinematics_service')
         self.logger = self.get_logger()
-        self.kin_solver = OrbitaKinSolver()
+        self.kin_solver = OrbitaKinematicsSolver()
         self.ik_service = self.create_service(GetOrbitaIK, 'orbita/kinematics/inverse', self.ik_callback)
         self.logger.info(f'Starting service "{self.ik_service.srv_name}".')
         self.orbita_look_at_tf_service = self.create_service(GetQuaternionTransform, 'orbita/kinematics/look_vector_to_quaternion', self.vec2quat_callback)
