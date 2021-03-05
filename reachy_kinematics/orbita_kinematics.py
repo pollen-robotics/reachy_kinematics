@@ -11,7 +11,7 @@ from .orbita import Actuator
 d_names = ['disk_top, disk_middle, disk_bottom']
 
 
-class OrbitaKinSolver(object):
+class OrbitaKinematicsSolver(object):
     """Kinematics solver class."""
 
     def __init__(self) -> None:
