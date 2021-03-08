@@ -29,16 +29,16 @@ class OrbitaKinematicsService(Node):
     def ik_callback(self, request: GetOrbitaIK.Request, response: GetOrbitaIK.Response):
         """Compute the inverse kinematics for orbita given the request."""
         try:
-            response.disk_pos = self.kin_solver.orbita_ik(request.quat)
+            response.disk_position = self.kin_solver.orbita_ik(request.orientation)
             response.success = True
         except ValueError:
-            self.logger.warning(f'Math domain error after ik request: {request.quat}')
+            self.logger.warning(f'Math domain error after ik request: {request.orientation}')
             response.success = False
         return response
 
     def vec2quat_callback(self, request: GetQuaternionTransform.Request, response: GetQuaternionTransform.Response):
         """Return the quaternion for the given look vector."""
-        response.quat = self.kin_solver.find_quaternion_transform(request.point)
+        response.orientation = self.kin_solver.find_quaternion_transform(request.look_vector)
         return response
 
 
@@ -47,7 +47,6 @@ def main(args=None):
     rclpy.init(args=args)
 
     orb_kin_service = OrbitaKinematicsService()
-
     rclpy.spin(orb_kin_service)
 
     rclpy.shutdown()
