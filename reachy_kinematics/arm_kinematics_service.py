@@ -24,7 +24,14 @@ from .arm_kinematics import generate_solver, forward_kinematics, inverse_kinemat
 
 
 class ArmKinematicsService(Node):
-    """Node exposing the reachy arm kinematics services."""
+    """Node exposing the reachy arm kinematics services.
+
+    Services:
+    - /left_arm/kinematics/forward reachy_msgs/srv/GetArmFK.srv
+    - /left_arm/kinematics/inverse reachy_msgs/srv/GetArmIK.srv
+    - /right_arm/kinematics/forward reachy_msgs/srv/GetArmFK.srv
+    - /right_arm/kinematics/inverse reachy_msgs/srv/GetArmFK.srv
+    """
 
     def __init__(self) -> None:
         """Set up the node."""

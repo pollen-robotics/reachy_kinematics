@@ -12,7 +12,12 @@ from .orbita_kinematics import OrbitaKinematicsSolver
 
 
 class OrbitaKinematicsService(Node):
-    """Node exposing the reachy orbita kinematics services."""
+    """Node exposing the reachy orbita kinematics services.
+
+    Services:
+    - /orbita/kinematics/inverse reachy_msgs/srv/GetOrbitaIK.srv
+    - /orbita/kinematics/look_vector_to_quaternion reachy_msgs/srv/GetQuaternionTransform.srv
+    """
 
     def __init__(self):
         """Set up the node."""
