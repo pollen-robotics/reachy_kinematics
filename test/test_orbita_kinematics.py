@@ -12,7 +12,7 @@ class TestOrbitaKinematics():
         cls.solver = orbita_kinematics.OrbitaKinSolver()
 
     def test_disk_order(self):
-        assert self.solver.disks_names == ['disk_top, disk_middle, disk_bottom']
+        assert self.solver.disks_names == ['disk_top', 'disk_middle', 'disk_bottom']
 
     def test_orbita_ik(self): 
         quat = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
