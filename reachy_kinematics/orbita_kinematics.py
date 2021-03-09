@@ -16,7 +16,7 @@ class OrbitaKinematicsSolver(object):
 
     def __init__(self) -> None:
         """Set up the class."""
-        self.disks_names = ['disk_top, disk_middle, disk_bottom']
+        self.disks_names = ['disk_top', 'disk_middle', 'disk_bottom']
         self.orbita = Actuator()
 
     def orbita_ik(self, quat: Quaternion) -> JointState:
