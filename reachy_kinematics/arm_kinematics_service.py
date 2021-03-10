@@ -61,7 +61,7 @@ class ArmKinematicsService(Node):
     def arm_fk(self, request: GetArmFK.Request, response: GetArmFK.Response, side: str, solver, nb_joints: int) -> GetArmFK.Response:
         """Compute the forward arm kinematics given the request."""
         try:
-            joints = self.joint_state_as_list(request.joint_position, side)
+            joints = self._joint_state_as_list(request.joint_position, side)
         except ValueError:
             response.success = False
             return response
