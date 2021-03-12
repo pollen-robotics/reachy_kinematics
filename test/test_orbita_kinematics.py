@@ -1,15 +1,13 @@
 """Unit tests for orbita_kinematics services."""
-import pytest
-
-import numpy as np
 from reachy_kinematics import orbita_kinematics
 from geometry_msgs.msg import Quaternion, Point
 
-from reachy_kinematics.orbita import Actuator
 
 class TestOrbitaKinematics():
+    """Class to test orbita_kinematics functions."""
     @classmethod
     def setup_class(cls):
+        """Declare shared solver for the test class."""
         cls.solver = orbita_kinematics.OrbitaKinSolver()
 
     def test_disk_order(self):
