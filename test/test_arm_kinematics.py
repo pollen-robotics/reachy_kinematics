@@ -1,8 +1,5 @@
 """Unit tests for arm_kinematics services."""
-import pytest
-
 import numpy as np
-from reachy_kinematics.kdl_parser_py import urdf
 from reachy_kinematics import arm_kinematics
 
 import rclpy
@@ -13,7 +10,10 @@ from std_msgs.msg import String
 
 
 def urdf_retriever():
+    """Retrieve Reachy's urdf."""
     class UrdfNodeRetriever(Node):
+        """Class to access urdf node."""
+
         def retrieve_urdf(self, timeout_sec: float = 5) -> None:
             """Retrieve the URDF file from the /robot_description topic.
 
@@ -45,8 +45,11 @@ def urdf_retriever():
 
 
 class TestArmKinematics():
+    """Class to test arm_kinematics functions."""
+
     @classmethod
     def setup_class(cls):
+        """Declare shared urdf and solvers for the test class."""
         cls.urdf = urdf_retriever()
         _, cls.fk_solvers, cls.ik_solvers = arm_kinematics.generate_solver(cls.urdf)
 
