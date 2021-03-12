@@ -1,10 +1,7 @@
-import os
-from pathlib import Path
-
+"""Unit tests for arm_kinematics services."""
 import pytest
 
 import numpy as np
-import PyKDL as kdl
 from reachy_kinematics.kdl_parser_py import urdf
 from reachy_kinematics import arm_kinematics
 
@@ -13,6 +10,7 @@ from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile
 
 from std_msgs.msg import String
+
 
 def urdf_retriever():
     class UrdfNodeRetriever(Node):
@@ -53,6 +51,7 @@ class TestArmKinematics():
         _, cls.fk_solvers, cls.ik_solvers = arm_kinematics.generate_solver(cls.urdf)
 
     def test_forward_kinematics_right(self):
+        """Test forward kinematic for right_arm with all joints at 0 degree."""
         joints = np.array([0, 0, 0, 0, 0, 0, 0])
         nb_joints = 7
         _, M_right = arm_kinematics.forward_kinematics(self.fk_solvers['right'], joints, nb_joints)
@@ -64,6 +63,7 @@ class TestArmKinematics():
         )))
 
     def test_forward_kinematics_left(self):
+        """Test forward kinematic for left arm with all joints at 0 degree."""
         joints = np.array([0, 0, 0, 0, 0, 0, 0])
         nb_joints = 7
         _, M_left = arm_kinematics.forward_kinematics(self.fk_solvers['left'], joints, nb_joints)
@@ -75,6 +75,7 @@ class TestArmKinematics():
         )))
 
     def test_inverse_kinematics_right(self):
+        """Test inverse kinematic for right arm with elbow_pitch at -90 degrees and all other joints at 0 degree."""
         q0 = np.array([0, 0, 0, -np.pi/2, 0, 0, 0])
         target_pose = np.array((
             (1, 0, 0, 0),
@@ -87,6 +88,7 @@ class TestArmKinematics():
         assert np.sum(sol) < 0.01
 
     def test_inverse_kinematics_left(self):
+        """Test inverse kinematic for left arm with elbow_pitch at 90 degrees and all other joints at 0 degree."""
         q0 = np.array([0, 0, 0, np.pi/2, 0, 0, 0])
         target_pose = np.array((
             (1, 0, 0, 0),
