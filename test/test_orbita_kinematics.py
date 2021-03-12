@@ -5,6 +5,7 @@ from geometry_msgs.msg import Quaternion, Point
 
 class TestOrbitaKinematics():
     """Class to test orbita_kinematics functions."""
+
     @classmethod
     def setup_class(cls):
         """Declare shared solver for the test class."""
