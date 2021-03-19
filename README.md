@@ -16,6 +16,10 @@ cd ~/reachy_ws/
 colcon build --packages-select reachy_kinematics
 ```
 
+To install PyKDL (on Ubuntu 20.04):
+```bash
+sudo apt install python3-pykdl
+```
 
 ## Published topics
 
