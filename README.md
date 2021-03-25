@@ -1,4 +1,4 @@
-# Reachy kinematics
+# Reachy 2021 kinematics
 
 ROS2 package publishing the /robot_description of Reachy using its URDF and creating the services handling the kinematics of both arms and Orbita actuator.
 
@@ -16,6 +16,10 @@ cd ~/reachy_ws/
 colcon build --packages-select reachy_kinematics
 ```
 
+To install PyKDL (on Ubuntu 20.04):
+```bash
+sudo apt install python3-pykdl
+```
 
 ## Published topics
 
