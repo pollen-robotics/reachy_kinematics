@@ -1,0 +1,12 @@
+[Unit]
+Description=Reachy_kinematics ROS2 package service
+Wants=network-online.target
+After=network.target network-online.target
+[Service]
+PIDFile=/var/run/reachy_kinematics.pid
+ExecStart=/usr/bin/bash /home/nuc/reachy_ws/src/reachy_kinematics/reachy_kinematics.bash
+User=nuc
+Group=nuc
+Type=simple
+[Install]
+WantedBy=multi-user.target
