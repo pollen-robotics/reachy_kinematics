@@ -9,8 +9,8 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     urdf = os.path.join(
-        get_package_share_directory('reachy_kinematics'),
-        'reachy.URDF',
+        get_package_share_directory('reachy_description'),
+        'urdf/reachy.URDF',
     )
 
     return LaunchDescription([
