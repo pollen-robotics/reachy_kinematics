@@ -16,11 +16,6 @@ setup(
 
         (os.path.join('share', package_name), glob('launch/*.py')),
 
-        (os.path.join('share', package_name), [
-            'reachy.URDF', 'reachy.URDF.xacro',
-        ]),
-
-        (os.path.join('share', package_name, 'meshes'), glob('meshes/*.dae')),
     ],
     install_requires=['setuptools', 'numpy', 'pyquaternion', 'scipy>=1.5'],
     zip_safe=True,
