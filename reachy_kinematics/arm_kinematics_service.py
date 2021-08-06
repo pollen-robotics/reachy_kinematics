@@ -97,10 +97,11 @@ class ArmKinematicsService(Node):
         self.logger.info("SERVO: joints state {}".format(
             self.current_joint_states))
         try:
-            j = {}
+            j = JointState
             for name, pos in zip(self.current_joint_states.name, self.current_joint_states.position):
                 if 'gripper' not in name:
-                    j[name] = pos
+                    j.name.append(name)
+                    j.position.append(pos)
             joints = self._joint_state_as_list(j, side)
         except ValueError:
             self.logger.error('Bad joint states')
