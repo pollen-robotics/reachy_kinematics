@@ -199,7 +199,8 @@ class ArmKinematicsService(Node):
             positions = [0.0] * len(joint_names)
 
             for name, pos in zip(joint_state.name, joint_state.position):
-                positions[joint_names.index(name)] = pos
+                if not 'gripper' in name:
+                    positions[joint_names.index(name)] = pos
             return positions
 
         else:
