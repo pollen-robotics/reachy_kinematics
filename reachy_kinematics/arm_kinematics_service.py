@@ -20,7 +20,7 @@ from std_msgs.msg import String
 
 from reachy_msgs.srv import GetArmFK, GetArmIK
 
-from .arm_kinematics import generate_solver, forward_kinematics, inverse_kinematics
+from .arm_kinematics import generate_solver, forward_kinematics, inverse_kinematics, get_jacobian, jacobian_pseudo_inverse
 
 
 class ArmKinematicsService(Node):
@@ -39,24 +39,79 @@ class ArmKinematicsService(Node):
         self.logger = self.get_logger()
 
         self.retrieve_urdf()
-        chains, fk_solvers, ik_solvers = generate_solver(self.urdf)
+        chains, fk_solvers, ik_solvers, jac_solvers = generate_solver(
+            self.urdf)
 
         for side in ('left', 'right'):
             srv = self.create_service(
                 srv_type=GetArmFK,
                 srv_name=f'/{side}_arm/kinematics/forward',
-                callback=partial(self.arm_fk, side=side, solver=fk_solvers[side], nb_joints=chains[side].getNrOfJoints()),
+                callback=partial(
+                    self.arm_fk, side=side, solver=fk_solvers[side], nb_joints=chains[side].getNrOfJoints()),
             )
             self.logger.info(f'Starting service "{srv.srv_name}".')
 
             srv = self.create_service(
                 srv_type=GetArmIK,
                 srv_name=f'/{side}_arm/kinematics/inverse',
-                callback=partial(self.arm_ik, side=side, solver=ik_solvers[side], nb_joints=chains[side].getNrOfJoints()),
+                callback=partial(
+                    self.arm_ik, side=side, solver=ik_solvers[side], nb_joints=chains[side].getNrOfJoints()),
             )
             self.logger.info(f'Starting service "{srv.srv_name}".')
 
+            sub = self.create_subscription(
+                JointState,
+                f'/{side}_arm/servo_goals',
+                callback=partial(
+                    self.arm_servo, side=side, fk_solver=fk_solvers[side], jac_solvers[side]=jac_solver),
+                10)
+
+        sub = self.create_subscription(
+            JointState,
+            'joint_states',
+            self.joint_states_cb,
+            10)
+
+        self.goal_publisher = self.create_publisher(
+            JointState, 'joint_goals', 1)
+        self.current_joint_states = None
         self.logger.info('Node ready!')
+
+    def joint_states_cb(self, states: JointState) -> None:
+        self.current_joint_states = state
+
+    def arm_servo(self, goal: JointState, side: str, fk_solver, jac_solver) -> None:
+        """
+        Compute a goal joint position from a goal cartesian position and the current joint state using the inverse Jacobian (differential kinematics).
+        Trying to implement something roughly similar to cartesianServoCalcs from Moveit2
+        \delta q = J^{-1} \delta x
+        """
+
+        # TODO check if the commands are valid (NaN, inf, non normalized quaternion...)
+
+        # the cartesian goal is in the robot frame
+
+        # compute delta_x (delta of cartesian pos):
+        # First, get the current cartesian pos from joints state
+        try:
+            joints = self._joint_state_as_list(self.current_joint_states, side)
+        except ValueError:
+            self.logger.error('Bad joint states')
+            return
+
+        # good format?
+        res, M = forward_kinematics(
+            fk_solver, joints, len(joints))
+        q = Rotation.from_matrix(M[:3, :3]).as_quat()
+
+        pos = Point(x=M[0, 3], y=M[1, 3], z=M[2, 3])
+        rot = Quaternion(x=q[0], y=q[1], z=q[2], w=q[3])
+
+        self.logger.info(
+            "SERVO: joints {} pos {} rot {}".format(joints, pos, rot))
+
+        J = get_jacobian(joints, jac_solvers)
+        self.logger.info("SERVO: J {}".format(J))
 
     def arm_fk(self, request: GetArmFK.Request, response: GetArmFK.Response, side: str, solver, nb_joints: int) -> GetArmFK.Response:
         """Compute the forward arm kinematics given the request."""
@@ -70,7 +125,8 @@ class ArmKinematicsService(Node):
             response.success = False
             return response
 
-        res, M = forward_kinematics(solver, request.joint_position.position, nb_joints)
+        res, M = forward_kinematics(
+            solver, request.joint_position.position, nb_joints)
         q = Rotation.from_matrix(M[:3, :3]).as_quat()
 
         response.success = True

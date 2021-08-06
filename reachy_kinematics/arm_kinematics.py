@@ -16,7 +16,7 @@ def generate_solver(urdf_str: str):
     chains = {}
     fk_solvers = {}
     ik_solvers = {}
-
+    jac_solver = {}
     for side in ['left', 'right']:
         chains[side] = urdf_tree.getChain('torso', f'{side}_tip')
         fk_solvers[side] = kdl.ChainFkSolverPos_recursive(chains[side])
@@ -27,8 +27,35 @@ def generate_solver(urdf_str: str):
             _maxiter=500,
             _eps_joints=1e-15,
         )
+        jac_solver = kdl.ChainJntToJacSolver(chains[side])
+    return chains, fk_solvers, ik_solvers, jac_solver
 
-    return chains, fk_solvers, ik_solvers
+
+def kdl_to_mat(data):
+    mat = np.mat(np.zeros((data.rows(), data.columns())))
+    for i in range(data.rows()):
+        for j in range(data.columns()):
+            mat[i, j] = data[i, j]
+    return mat
+
+
+def get_jacobian(joint_values: np.ndarray, solver):
+    """
+    joint_values: list of joints values for the considered arm
+    solver: ChainJntToJacSolver
+    """
+    jacobian = PyKDL.Jacobian(len(joint_values))
+    PyKDL.SetToZero(jacobian)
+    Q = kdl.JntArray(nb_joints)
+    for i, j in enumerate(joint_values):
+        Q[i] = j
+
+    solver.JntToJac(Q, jacobian)
+    return kdl_to_mat(jacobian)
+
+
+def jacobian_pseudo_inverse(joint_values: np.ndarray, solver):
+    return np.linalg.pinv(get_jacobian(joint_values, solver))
 
 
 def forward_kinematics(fk_solver, joints: np.ndarray, nb_joints: int) -> Tuple[float, np.ndarray]:
