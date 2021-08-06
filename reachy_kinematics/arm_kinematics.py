@@ -46,7 +46,7 @@ def get_jacobian(joint_values: np.ndarray, solver):
     """
     jacobian = kdl.Jacobian(len(joint_values))
     kdl.SetToZero(jacobian)
-    Q = kdl.JntArray(nb_joints)
+    Q = kdl.JntArray(len(joint_values))
     for i, j in enumerate(joint_values):
         Q[i] = j
 
