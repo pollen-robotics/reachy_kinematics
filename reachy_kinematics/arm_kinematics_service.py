@@ -78,7 +78,7 @@ class ArmKinematicsService(Node):
         self.logger.info('Node ready!')
 
     def joint_states_cb(self, states: JointState) -> None:
-        self.current_joint_states = state
+        self.current_joint_states = states
 
     def arm_servo(self, goal: JointState, side: str, fk_solver, jac_solver) -> None:
         """
