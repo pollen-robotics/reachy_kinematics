@@ -110,7 +110,7 @@ class ArmKinematicsService(Node):
         self.logger.info(
             "SERVO: joints {} pos {} rot {}".format(joints, pos, rot))
 
-        J = get_jacobian(joints, jac_solvers)
+        J = get_jacobian(joints, jac_solver)
         self.logger.info("SERVO: J {}".format(J))
 
     def arm_fk(self, request: GetArmFK.Request, response: GetArmFK.Response, side: str, solver, nb_joints: int) -> GetArmFK.Response:

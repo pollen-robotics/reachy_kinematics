@@ -16,7 +16,7 @@ def generate_solver(urdf_str: str):
     chains = {}
     fk_solvers = {}
     ik_solvers = {}
-    jac_solver = {}
+    jac_solvers = {}
     for side in ['left', 'right']:
         chains[side] = urdf_tree.getChain('torso', f'{side}_tip')
         fk_solvers[side] = kdl.ChainFkSolverPos_recursive(chains[side])
@@ -27,8 +27,8 @@ def generate_solver(urdf_str: str):
             _maxiter=500,
             _eps_joints=1e-15,
         )
-        jac_solver = kdl.ChainJntToJacSolver(chains[side])
-    return chains, fk_solvers, ik_solvers, jac_solver
+        jac_solvers[side] = kdl.ChainJntToJacSolver(chains[side])
+    return chains, fk_solvers, ik_solvers, jac_solvers
 
 
 def kdl_to_mat(data):
