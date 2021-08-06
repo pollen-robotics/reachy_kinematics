@@ -44,8 +44,8 @@ def get_jacobian(joint_values: np.ndarray, solver):
     joint_values: list of joints values for the considered arm
     solver: ChainJntToJacSolver
     """
-    jacobian = PyKDL.Jacobian(len(joint_values))
-    PyKDL.SetToZero(jacobian)
+    jacobian = kdl.Jacobian(len(joint_values))
+    kdl.SetToZero(jacobian)
     Q = kdl.JntArray(nb_joints)
     for i, j in enumerate(joint_values):
         Q[i] = j
