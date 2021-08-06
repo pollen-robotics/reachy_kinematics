@@ -93,6 +93,9 @@ class ArmKinematicsService(Node):
 
         # compute delta_x (delta of cartesian pos):
         # First, get the current cartesian pos from joints state
+
+        self.logger.info("SERVO: joints state {}".format(
+            self.current_joint_states))
         try:
             joints = self._joint_state_as_list(self.current_joint_states, side)
         except ValueError:
