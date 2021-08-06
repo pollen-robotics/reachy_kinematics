@@ -62,7 +62,7 @@ class ArmKinematicsService(Node):
             sub = self.create_subscription(
                 JointState,
                 f'/{side}_arm/servo_goals',
-                callback=partial(
+                partial(
                     self.arm_servo, side=side, fk_solver=fk_solvers[side], jac_solver=jac_solvers[side]),
                 10)
 
