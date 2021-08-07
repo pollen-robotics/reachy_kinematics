@@ -28,7 +28,7 @@ def generate_solver(urdf_str: str):
             _eps_joints=1e-15,
         )
         jac_solvers[side] = kdl.ChainJntToJacSolver(chains[side])
-    return chains, fk_solvers, ik_solvers, jac_solvers
+    return chains, fk_solvers, ik_solvers, jac_solvers, urdf_tree
 
 
 def kdl_to_mat(data):
