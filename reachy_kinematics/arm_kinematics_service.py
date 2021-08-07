@@ -20,7 +20,7 @@ from std_msgs.msg import String
 
 from reachy_msgs.srv import GetArmFK, GetArmIK
 
-from .arm_kinematics import generate_solver, forward_kinematics, inverse_kinematics, get_jacobian, jacobian_pseudo_inverse
+from .arm_kinematics import generate_solver, forward_kinematics, inverse_kinematics, get_jacobian, jacobian_pseudo_inverse, orientation_difference
 
 
 class ArmKinematicsService(Node):
@@ -94,8 +94,8 @@ class ArmKinematicsService(Node):
         # compute delta_x (delta of cartesian pos):
         # First, get the current cartesian pos from joints state
 
-        self.logger.info("SERVO: joints state {}".format(
-            self.current_joint_states))
+        # self.logger.info("SERVO: joints state {}".format(
+        #     self.current_joint_states))
         try:
             j = JointState()
             for name, pos in zip(self.current_joint_states.name, self.current_joint_states.position):
@@ -110,16 +110,25 @@ class ArmKinematicsService(Node):
         # good format?
         res, M = forward_kinematics(
             fk_solver, joints, len(joints))
-        q = Rotation.from_matrix(M[:3, :3]).as_quat()
+        euler = Rotation.from_matrix(M[:3, :3]).as_euler()
 
-        pos = Point(x=M[0, 3], y=M[1, 3], z=M[2, 3])
-        rot = Quaternion(x=q[0], y=q[1], z=q[2], w=q[3])
+        Pos0 = np.array([M[0, 3], M[1, 3], M[2, 3]])
+        Ori0 = np.array([euler[0], euler[1], euler[2]])
 
-        self.logger.info(
-            "SERVO: joints {} pos {} rot {}".format(joints, pos, rot))
+        Pos1 = np.array(
+            [JointState.position[0], JointState.position[1], JointState.position[2]])
+        Ori1 = np.array(
+            [JointState.position[3], JointState.position[4], JointState.position[5]])
+
+        dpos = Pos1-Pos0
+        dori = orientation_difference(Ori1, Ori0)
+
+        delta_x = np.concatenate((dpos, dori))
 
         J = get_jacobian(joints, jac_solver)
         self.logger.info("SERVO: J {}".format(J))
+
+        # TODO normalize delta_x (direction of the motion) and multiply by velocity?
 
     def arm_fk(self, request: GetArmFK.Request, response: GetArmFK.Response, side: str, solver, nb_joints: int) -> GetArmFK.Response:
         """Compute the forward arm kinematics given the request."""

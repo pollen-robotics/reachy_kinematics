@@ -39,10 +39,21 @@ def kdl_to_mat(data):
     return mat
 
 
+def orientation_difference(q1, q2):
+    """
+    like in Euler representation
+    """
+    diff = np.array(q1) - np.array(q2)
+    diff_mod = np.mod(diff, 2 * np.pi)
+    diff_alt = diff_mod - 2 * np.pi
+    return diff
+
+
 def get_jacobian(joint_values: np.ndarray, solver):
     """
     joint_values: list of joints values for the considered arm
     solver: ChainJntToJacSolver
+    The Jacobian will be 6xN dimension
     """
     jacobian = kdl.Jacobian(len(joint_values))
     kdl.SetToZero(jacobian)
