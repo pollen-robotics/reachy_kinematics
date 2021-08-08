@@ -47,7 +47,8 @@ class ArmKinematicsService(Node):
         self.lower_limits={}
         self.lower_singularity_threshold=30.0
         self.hard_stop_singularity_threshold=45.0
-                
+        self.max_joints_vel=1.0 #rad/s #TODO
+        
         #self.logger.warning('urdf: {}'.format(self.urdf))        
         for side in ('left', 'right'):
             srv = self.create_service(
@@ -129,8 +130,29 @@ class ArmKinematicsService(Node):
 
         return joint_limits_lower, joint_limits_upper
 
+    def check_joints_in_limits(self, q, side):
+
+        lower_lim=np.minimum(self.lower_limits[side],self.upper_limits[side])
+        upper_lim=np.maximum(self.lower_limits[side],self.upper_limits[side])
+                
+        return np.all([q >= lower_lim, q <= upper_lim], 0)
+
+
+    def clip_joints_limits(self, q, side):
         
-        
+        lower_lim=np.minimum(self.lower_limits[side],self.upper_limits[side])
+        upper_lim=np.maximum(self.lower_limits[side],self.upper_limits[side])
+
+        return np.clip(q, lower_lim, upper_lim)
+
+    def check_joints_in_vel_limits(self, dq):
+        return np.all([dq >= -self.max_joints_vel, dq <= self.max_joints_vel], 0)
+
+
+    def clip_joints_vel_limits(self, dq):
+        return np.clip(dq, -self.max_joints_vel, self.max_joints_vel)
+    
+    
     def joint_states_cb(self, states: JointState) -> None:
         self.current_joint_states = states
 
@@ -250,7 +272,7 @@ class ArmKinematicsService(Node):
         if delta_x_norm>0.0001:
             #TODO check validity of goal and current state. Handle the no orientation goal case
             J = get_jacobian(joints, jac_solver)
-            self.logger.info("SERVO: J {} pos0: {} ori0: {} pos1: {} ori1: {} dpos: {} dori: {}".format(J,Pos0, Ori0, Pos1, Ori1, dpos,dori))
+            #self.logger.info("SERVO: J {} pos0: {} ori0: {} pos1: {} ori1: {} dpos: {} dori: {}".format(J,Pos0, Ori0, Pos1, Ori1, dpos,dori))
 
             #Jinv=np.linalg.pinv(J)
 
@@ -261,20 +283,34 @@ class ArmKinematicsService(Node):
             Jinv_svd=np.dot(vh.transpose(),np.dot(np.diag(s**-1),u.transpose()))
             
             #self.logger.info("SERVO: Jinv:\n{}\nJinv_svd:\n{}".format(Jinv,Jinv_svd))
-            normed_delta_x=delta_x/delta_x_norm*0.01
-            scaled_delta_x=delta_x*0.1
-            self.logger.info("SERVO: norm: {} normed_dx {}".format(delta_x_norm,normed_delta_x))
-            delta_q=Jinv_svd @ delta_x
+            #normed_delta_x=delta_x/delta_x_norm*0.01
+            #scaled_delta_x=delta_x*0.1
+            #self.logger.info("SERVO: norm: {} normed_dx {}".format(delta_x_norm,normed_delta_x))
+            delta_q=Jinv_svd @ delta_x #carefull...
 
             delta_q*=self.scaling_factor_for_singularity(delta_x, u,s,vh, Jinv_svd, joints, jac_solver)
+            delta_q=np.array([delta_q.flat[i] for i,_ in enumerate(cmd.position)]) #why the f*ck I cannot flatten this one?
             
-            self.logger.info("SERVO: delta_q {}".format(delta_q))
+            #self.logger.info("SERVO: delta_q {}".format(delta_q))
             # TODO normalize delta_x (direction of the motion) and multiply by velocity?
 
+            if not self.check_joints_in_vel_limits(delta_q).any():
+                self.logger.warning("Trying to move outside joints vel limits! {}".format(delta_q))
+                delta_q=self.clip_joints_vel_limits(delta_q)
+
+            newpos=np.zeros(len(cmd.position))
             for i,_ in enumerate(cmd.position):
                 #self.logger.info("SERVO: {} {}".format(delta_q.flat[i], cmd.position[i]))
-                cmd.position[i]+=delta_q.flat[i]
+                newpos[i]=cmd.position[i]+delta_q[i]
+
+            if not self.check_joints_in_limits(cmd.position, side).any():
+                self.logger.warning("Trying to move outside joints limits! {} ({} {})".format(newpos,self.lower_limits[side], self.upper_limits[side]))
+                newpos=self.clip_joints_limits(newpos,side)
+
+            #cmd.position[i]+=delta_q.flat[i]
+            cmd.position=[p for p in newpos]
             self.goal_publisher.publish(cmd)
+            
         
     def arm_fk(self, request: GetArmFK.Request, response: GetArmFK.Response, side: str, solver, nb_joints: int) -> GetArmFK.Response:
         """Compute the forward arm kinematics given the request."""
