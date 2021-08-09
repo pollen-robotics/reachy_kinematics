@@ -13,6 +13,7 @@ from scipy.spatial.transform import Rotation
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile
+import PyKDL as kdl
 
 from geometry_msgs.msg import Point, Quaternion, Pose
 from sensor_msgs.msg import JointState
@@ -45,9 +46,9 @@ class ArmKinematicsService(Node):
         self.urdf_model=urdf.URDF.from_xml_string(self.urdf)
         self.upper_limits={}
         self.lower_limits={}
-        self.lower_singularity_threshold=30.0
-        self.hard_stop_singularity_threshold=45.0
-        self.max_joints_vel=1.0 #rad/s #TODO
+        self.lower_singularity_threshold=25.0
+        self.hard_stop_singularity_threshold=40.0
+        self.max_joints_vel=1.0*(1.0/50.0) #max delta_q assuming 1 rad/s and a 50Hz update... 
         
         #self.logger.warning('urdf: {}'.format(self.urdf))        
         for side in ('left', 'right'):
@@ -67,6 +68,16 @@ class ArmKinematicsService(Node):
             )
             self.logger.info(f'Starting service "{srv.srv_name}".')
 
+
+            srv = self.create_service(
+                srv_type=GetArmIK,
+                srv_name=f'/{side}_arm/kinematics/safer_inverse',
+                callback=partial(
+                    self.arm_ik_safe, side=side, fk_solver=fk_solvers[side], jac_solver=jac_solvers[side], nb_joints=chains[side].getNrOfJoints()),
+            )
+            self.logger.info(f'Starting service "{srv.srv_name}".')
+
+            
             sub = self.create_subscription(
                 Pose,
                 f'/{side}_arm/servo_goals',
@@ -182,9 +193,6 @@ class ArmKinematicsService(Node):
         delta_x = vector_toward_singularity / scale
 
         # Calculate a small change in joints
-
-
-
         
         delta_theta = Jinv @ delta_x
         new_theta=np.array(joint_states)+delta_theta
@@ -200,7 +208,6 @@ class ArmKinematicsService(Node):
             vector_toward_singularity *= -1;
 
         #If this dot product is positive, we're moving toward singularity ==> decelerate
-
         dot=np.dot(vector_toward_singularity, delta_x_in)
         
         if dot > 0:
@@ -220,7 +227,76 @@ class ArmKinematicsService(Node):
                 
         return vel_scale          
 
+
+    def get_current_state(self, side, fk_solver):
         
+        try:
+            j = JointState()
+
+            for name, pos in zip(self.current_joint_states.name, self.current_joint_states.position):
+                if 'gripper' not in name:
+                    j.name.append(name)
+                    j.position.append(pos)
+            joints = self._joint_state_as_list(j, side)
+        except ValueError:
+            self.logger.error('Bad joint states')
+            return None, None
+
+
+        
+        res, M = forward_kinematics(
+            fk_solver, joints, len(joints))
+        #euler = Rotation.from_matrix(M[:3, :3]).as_euler('xyz')
+
+        R = M[:3, :3].flatten().tolist()
+
+        #current pose
+        pose0 = kdl.Frame()
+        pose0.p = kdl.Vector(M[0, 3], M[1, 3], M[2, 3])
+        pose0.M = kdl.Rotation(*R)
+
+        return joints, pose0
+
+
+    def safe_ik(self, cmd, delta_x, joints, side,jac_solver):
+    
+        delta_x_norm=np.linalg.norm(delta_x)
+        if delta_x_norm>0.0001:
+            #TODO check validity of goal and current state. Handle the no orientation goal case
+            J = get_jacobian(joints, jac_solver)
+
+            #pseudo inverse Jacobian through SVD decomposition
+            u, s, vh=np.linalg.svd(J, full_matrices=False)
+            invs=np.linalg.inv(np.diag(s))
+            Jinv_svd=np.dot(vh.transpose(),np.dot(np.diag(s**-1),u.transpose()))
+
+            delta_q=Jinv_svd @ delta_x 
+
+            # apply a scaling for the command
+            delta_q*=self.scaling_factor_for_singularity(delta_x, u,s,vh, Jinv_svd, joints, jac_solver)
+            delta_q=np.array([delta_q.flat[i] for i,_ in enumerate(cmd.position)]) #why the f*ck I cannot flatten this one?
+
+            #check the result velocity
+            if not self.check_joints_in_vel_limits(delta_q).any():
+                self.logger.warning("Trying to move outside joints vel limits! {}".format(delta_q))
+                delta_q=self.clip_joints_vel_limits(delta_q)
+                self.logger.warning("\tclipped vel {}".format(delta_q))
+            newpos=np.zeros(len(cmd.position))
+            for i,_ in enumerate(cmd.position):
+                
+                newpos[i]=cmd.position[i]+delta_q[i]
+
+            # check the angle limits 
+            if not self.check_joints_in_limits(cmd.position, side).any():
+                self.logger.warning("Trying to move outside joints limits! {} ({} {})".format(newpos,self.lower_limits[side], self.upper_limits[side]))
+                newpos=self.clip_joints_limits(newpos,side)
+
+            cmd.position=[p for p in newpos]
+            return cmd
+
+        else:
+            return cmd
+                
     def arm_servo(self, goal: Pose, side: str, fk_solver, jac_solver) -> None:
         """
         Compute a goal joint position from a goal cartesian position and the current joint state using the inverse Jacobian (differential kinematics).
@@ -235,81 +311,38 @@ class ArmKinematicsService(Node):
         # compute delta_x (delta of cartesian pos):
         # First, get the current cartesian pos from joints state
 
-        # self.logger.info("SERVO: joints state {}".format(
-        #     self.current_joint_states))
-        try:
-            j = JointState()
-            cmd=JointState()
-            for name, pos in zip(self.current_joint_states.name, self.current_joint_states.position):
-                if 'gripper' not in name:
-                    j.name.append(name)
-                    cmd.name.append(name)
-                    j.position.append(pos)
-                    cmd.position.append(pos)
-            joints = self._joint_state_as_list(j, side)
-        except ValueError:
-            self.logger.error('Bad joint states')
+
+
+        joints, pose0 = self.get_current_state(side, fk_solver)
+        if joints is None or pose0 is None:
+            self.logger.error('Aborting')
             return
 
-        # good format?
-        res, M = forward_kinematics(
-            fk_solver, joints, len(joints))
-        euler = Rotation.from_matrix(M[:3, :3]).as_euler('xyz')
+        #copy the current joint state
+        cmd=JointState()
+        for name, pos in zip(self.current_joint_states.name, self.current_joint_states.position):
+            if 'gripper' not in name:
+                cmd.name.append(name)
+                cmd.position.append(pos)
+        
+        #goal pos
+        pose1 = kdl.Frame()
+        pose1.p = kdl.Vector(goal.position.x,goal.position.y,goal.position.z)
+        R1 = Rotation.from_quat((goal.orientation.x, goal.orientation.y, goal.orientation.z, goal.orientation.w)).as_matrix()
+        R1=R1.flatten().tolist()
+        pose1.M=kdl.Rotation(*R1)
 
-        Pos0 = np.array([M[0, 3], M[1, 3], M[2, 3]])
-        Ori0 = np.array([euler[0], euler[1], euler[2]])
+        #self.logger.info("SERVO pose0: {} pose1: {}".format(pose0,pose1))
+        #delta of the pose
+        delta_x=kdl.diff(pose0,pose1,1)
+        #self.logger.info("SERVO kdl delta_x: {}".format(delta_x))
+                
+        delta_x=np.array([delta_x.vel.x(),delta_x.vel.y(),delta_x.vel.z(),delta_x.rot.x(),delta_x.rot.y(),delta_x.rot.z()])
+        #self.logger.info("SERVO kdl delta_x np: {}".format(delta_x))
 
-        self.logger.info("SERVO goal: {}".format(goal))
-        Pos1 = np.array(
-            [goal.position.x, goal.position.y, goal.position.z])
-        Ori1 = Rotation.from_quat([goal.orientation.x, goal.orientation.y, goal.orientation.z,goal.orientation.w]).as_euler('xyz')
+        cmd=self.safe_ik(cmd,delta_x,joints,side,jac_solver)
 
-        dpos = Pos1-Pos0
-        dori = orientation_difference(Ori1, Ori0)
-
-        delta_x = np.concatenate((dpos, dori))
-        delta_x_norm=np.linalg.norm(delta_x)
-        if delta_x_norm>0.0001:
-            #TODO check validity of goal and current state. Handle the no orientation goal case
-            J = get_jacobian(joints, jac_solver)
-            #self.logger.info("SERVO: J {} pos0: {} ori0: {} pos1: {} ori1: {} dpos: {} dori: {}".format(J,Pos0, Ori0, Pos1, Ori1, dpos,dori))
-
-            #Jinv=np.linalg.pinv(J)
-
-            u, s, vh=np.linalg.svd(J, full_matrices=False)
-            invs=np.linalg.inv(np.diag(s))
-            #self.logger.info("SERVO: svd u({}):\n{} s({}):\n{} vh({}):\n{} sdiag({})(:\n{}".format(u.shape,u,s.shape,s,vh.shape,vh,invs.shape,invs))
-            #Jinv = vh @ invs @ u.T;
-            Jinv_svd=np.dot(vh.transpose(),np.dot(np.diag(s**-1),u.transpose()))
-            
-            #self.logger.info("SERVO: Jinv:\n{}\nJinv_svd:\n{}".format(Jinv,Jinv_svd))
-            #normed_delta_x=delta_x/delta_x_norm*0.01
-            #scaled_delta_x=delta_x*0.1
-            #self.logger.info("SERVO: norm: {} normed_dx {}".format(delta_x_norm,normed_delta_x))
-            delta_q=Jinv_svd @ delta_x #carefull...
-
-            delta_q*=self.scaling_factor_for_singularity(delta_x, u,s,vh, Jinv_svd, joints, jac_solver)
-            delta_q=np.array([delta_q.flat[i] for i,_ in enumerate(cmd.position)]) #why the f*ck I cannot flatten this one?
-            
-            #self.logger.info("SERVO: delta_q {}".format(delta_q))
-            # TODO normalize delta_x (direction of the motion) and multiply by velocity?
-
-            if not self.check_joints_in_vel_limits(delta_q).any():
-                self.logger.warning("Trying to move outside joints vel limits! {}".format(delta_q))
-                delta_q=self.clip_joints_vel_limits(delta_q)
-
-            newpos=np.zeros(len(cmd.position))
-            for i,_ in enumerate(cmd.position):
-                #self.logger.info("SERVO: {} {}".format(delta_q.flat[i], cmd.position[i]))
-                newpos[i]=cmd.position[i]+delta_q[i]
-
-            if not self.check_joints_in_limits(cmd.position, side).any():
-                self.logger.warning("Trying to move outside joints limits! {} ({} {})".format(newpos,self.lower_limits[side], self.upper_limits[side]))
-                newpos=self.clip_joints_limits(newpos,side)
-
-            #cmd.position[i]+=delta_q.flat[i]
-            cmd.position=[p for p in newpos]
-            self.goal_publisher.publish(cmd)
+        self.goal_publisher.publish(cmd)
             
         
     def arm_fk(self, request: GetArmFK.Request, response: GetArmFK.Response, side: str, solver, nb_joints: int) -> GetArmFK.Response:
@@ -364,6 +397,48 @@ class ArmKinematicsService(Node):
 
         return response
 
+
+
+    def arm_ik_safe(self, request: GetArmIK.Request, response: GetArmIK.Response, side: str, fk_solver, jac_solver, nb_joints: int) -> GetArmIK.Response:
+        """Compute the inverse arm kinematics given the request."""
+
+        # #get current joints state
+
+        joints, pose0 = self.get_current_state(side, fk_solver)
+        if joints is None or pose0 is None:
+            self.logger.error('Aborting')
+            return
+
+        #copy the current joint state
+        cmd=JointState()
+        for name, pos in zip(self.current_joint_states.name, self.current_joint_states.position):
+            if 'gripper' not in name:
+                cmd.name.append(name)
+                cmd.position.append(pos)
+        
+
+        #goal pos
+        pose1 = kdl.Frame()
+        pose1.p = kdl.Vector(request.pose.position.x,request.pose.position.y,request.pose.position.z)
+        R1 = Rotation.from_quat((request.pose.orientation.x, request.pose.orientation.y, request.pose.orientation.z, request.pose.orientation.w)).as_matrix()
+        R1=R1.flatten().tolist()
+        pose1.M=kdl.Rotation(*R1)
+
+        #delta of the pose
+        delta_x=kdl.diff(pose0,pose1,1)
+                
+        delta_x=np.array([delta_x.vel.x(),delta_x.vel.y(),delta_x.vel.z(),delta_x.rot.x(),delta_x.rot.y(),delta_x.rot.z()])
+        
+
+        cmd=self.safe_ik(cmd,delta_x,joints,side,jac_solver)
+        self.logger.info("SAFE IK : {}".format(cmd))        
+        response.success = True
+        response.joint_position=cmd
+
+        return response
+
+
+    
     def get_arm_joints_name(self, side: str) -> List[str]:
         """Return the list of joints name for the specified arm."""
         side = 'l' if side == 'left' else 'r'
