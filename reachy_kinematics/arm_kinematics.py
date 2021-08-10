@@ -31,7 +31,7 @@ def generate_solver(urdf_str: str):
     return chains, fk_solvers, ik_solvers, jac_solvers, urdf_tree
 
 
-def kdl_to_mat(data):
+def kdl_to_mat(data: kdl.Jacobian) -> np.ndarray:
     mat = np.mat(np.zeros((data.rows(), data.columns())))
     for i in range(data.rows()):
         for j in range(data.columns()):
@@ -39,7 +39,7 @@ def kdl_to_mat(data):
     return mat
 
 
-def orientation_difference(q1, q2):
+def orientation_difference(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
     """
     like in Euler representation
     """
@@ -49,7 +49,7 @@ def orientation_difference(q1, q2):
     return diff
 
 
-def get_jacobian(joint_values: np.ndarray, solver):
+def get_jacobian(joint_values: np.ndarray, solver) -> kdl.Jacobian:
     """
     joint_values: list of joints values for the considered arm
     solver: ChainJntToJacSolver
@@ -65,7 +65,7 @@ def get_jacobian(joint_values: np.ndarray, solver):
     return kdl_to_mat(jacobian)
 
 
-def jacobian_pseudo_inverse(joint_values: np.ndarray, solver):
+def jacobian_pseudo_inverse(joint_values: np.ndarray, solver) -> np.ndarray:
     return np.linalg.pinv(get_jacobian(joint_values, solver))
 
 

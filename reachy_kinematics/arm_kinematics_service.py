@@ -4,7 +4,7 @@ See README.md for details on the services exposed.
 
 """
 from functools import partial
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 
@@ -105,11 +105,11 @@ class ArmKinematicsService(Node):
         self.logger.info('Node ready!')
 
 
-    def get_chain_joint_names(self, end_link, links=False, fixed=False):
+    def get_chain_joint_names(self, end_link: str, links=False, fixed=False):
          return self.urdf_model.get_chain('torso', end_link,
                                     links=links, fixed=fixed)
         
-    def get_limits(self, urdf, side):
+    def get_limits(self, urdf, side: str) -> Tuple[np.ndarray, np.ndarray]:
 
         # adapted from pykdl_utils
         # record joint information in easy-to-use lists
@@ -141,7 +141,7 @@ class ArmKinematicsService(Node):
 
         return joint_limits_lower, joint_limits_upper
 
-    def check_joints_in_limits(self, q, side):
+    def check_joints_in_limits(self, q: np.ndarray, side: str) -> np.ndarray:
 
         lower_lim=np.minimum(self.lower_limits[side],self.upper_limits[side])
         upper_lim=np.maximum(self.lower_limits[side],self.upper_limits[side])
@@ -149,18 +149,18 @@ class ArmKinematicsService(Node):
         return np.all([q >= lower_lim, q <= upper_lim], 0)
 
 
-    def clip_joints_limits(self, q, side):
+    def clip_joints_limits(self, q: np.ndarray, side: str) -> np.ndarray:
         
         lower_lim=np.minimum(self.lower_limits[side],self.upper_limits[side])
         upper_lim=np.maximum(self.lower_limits[side],self.upper_limits[side])
 
         return np.clip(q, lower_lim, upper_lim)
 
-    def check_joints_in_vel_limits(self, dq):
+    def check_joints_in_vel_limits(self, dq: np.ndarray) -> np.ndarray:
         return np.all([dq >= -self.max_joints_vel, dq <= self.max_joints_vel], 0)
 
 
-    def clip_joints_vel_limits(self, dq):
+    def clip_joints_vel_limits(self, dq: np.ndarray) -> np.ndarray: 
         return np.clip(dq, -self.max_joints_vel, self.max_joints_vel)
     
     
@@ -168,7 +168,7 @@ class ArmKinematicsService(Node):
         self.current_joint_states = states
 
 
-    def scaling_factor_for_singularity(self, delta_x_in, u,s,vh, Jinv, joint_states, jac_solver):
+    def scaling_factor_for_singularity(self, delta_x_in: np.ndarray, u: np.ndarray,s: np.ndarray,vh: np.ndarray, Jinv: np.ndarray, joint_states: List[float], jac_solver) -> Tuple[float, bool]: 
         """
         Adapted from Moveit Servo
         Try to scale the command when going close to singularity.
@@ -209,7 +209,7 @@ class ArmKinematicsService(Node):
 
         #If this dot product is positive, we're moving toward singularity ==> decelerate
         dot=np.dot(vector_toward_singularity, delta_x_in)
-        
+        ok=True
         if dot > 0:
             # Ramp velocity down linearly when the Jacobian condition is between lower_singularity_threshold and
             # hard_stop_singularity_threshold, and we're moving towards the singularity
@@ -223,12 +223,12 @@ class ArmKinematicsService(Node):
             elif ini_condition > self.hard_stop_singularity_threshold:
                 vel_scale = 0;
                 self.logger.warning("We stop for singularity ({})".format(ini_condition))
+                ok=False
                 
-                
-        return vel_scale          
+        return vel_scale, ok          
 
 
-    def get_current_state(self, side, fk_solver):
+    def get_current_state(self, side: str, fk_solver) -> Tuple[List[float], kdl.Frame]:
         
         try:
             j = JointState()
@@ -258,8 +258,8 @@ class ArmKinematicsService(Node):
         return joints, pose0
 
 
-    def safe_ik(self, cmd, delta_x, joints, side,jac_solver):
-    
+    def safe_ik(self, cmd: JointState, delta_x: np.ndarray, joints: List[float], side: str,jac_solver) -> Tuple[JointState, bool]:
+        ok=True
         delta_x_norm=np.linalg.norm(delta_x)
         if delta_x_norm>0.0001:
             #TODO check validity of goal and current state. Handle the no orientation goal case
@@ -273,7 +273,8 @@ class ArmKinematicsService(Node):
             delta_q=Jinv_svd @ delta_x 
 
             # apply a scaling for the command
-            delta_q*=self.scaling_factor_for_singularity(delta_x, u,s,vh, Jinv_svd, joints, jac_solver)
+            v,ok=self.scaling_factor_for_singularity(delta_x, u,s,vh, Jinv_svd, joints, jac_solver)
+            delta_q*=v
             delta_q=np.array([delta_q.flat[i] for i,_ in enumerate(cmd.position)]) #why the f*ck I cannot flatten this one?
 
             #check the result velocity
@@ -290,12 +291,12 @@ class ArmKinematicsService(Node):
             if not self.check_joints_in_limits(cmd.position, side).any():
                 self.logger.warning("Trying to move outside joints limits! {} ({} {})".format(newpos,self.lower_limits[side], self.upper_limits[side]))
                 newpos=self.clip_joints_limits(newpos,side)
-
+                ok=False
             cmd.position=[p for p in newpos]
-            return cmd
+            return cmd, ok
 
         else:
-            return cmd
+            return cmd, ok
                 
     def arm_servo(self, goal: Pose, side: str, fk_solver, jac_solver) -> None:
         """
@@ -340,9 +341,9 @@ class ArmKinematicsService(Node):
         delta_x=np.array([delta_x.vel.x(),delta_x.vel.y(),delta_x.vel.z(),delta_x.rot.x(),delta_x.rot.y(),delta_x.rot.z()])
         #self.logger.info("SERVO kdl delta_x np: {}".format(delta_x))
 
-        cmd=self.safe_ik(cmd,delta_x,joints,side,jac_solver)
-
-        self.goal_publisher.publish(cmd)
+        cmd, ok=self.safe_ik(cmd,delta_x,joints,side,jac_solver)
+        if ok:
+            self.goal_publisher.publish(cmd)
             
         
     def arm_fk(self, request: GetArmFK.Request, response: GetArmFK.Response, side: str, solver, nb_joints: int) -> GetArmFK.Response:
@@ -430,9 +431,9 @@ class ArmKinematicsService(Node):
         delta_x=np.array([delta_x.vel.x(),delta_x.vel.y(),delta_x.vel.z(),delta_x.rot.x(),delta_x.rot.y(),delta_x.rot.z()])
         
 
-        cmd=self.safe_ik(cmd,delta_x,joints,side,jac_solver)
+        cmd,ok=self.safe_ik(cmd,delta_x,joints,side,jac_solver)
         self.logger.info("SAFE IK : {}".format(cmd))        
-        response.success = True
+        response.success = ok
         response.joint_position=cmd
 
         return response
