@@ -229,18 +229,18 @@ class ArmKinematicsService(Node):
 
 
     def get_current_state(self, side: str, fk_solver) -> Tuple[List[float], kdl.Frame]:
-        
-        try:
-            j = JointState()
+        # try:
+        j = JointState()
 
-            for name, pos in zip(self.current_joint_states.name, self.current_joint_states.position):
-                if 'gripper' not in name:
-                    j.name.append(name)
-                    j.position.append(pos)
-            joints = self._joint_state_as_list(j, side)
-        except ValueError:
-            self.logger.error('Bad joint states')
-            return None, None
+        for name, pos in zip(self.current_joint_states.name, self.current_joint_states.position):
+            if 'gripper' not in name and name in self.get_arm_joints_name(side):
+                j.name.append(name)
+                j.position.append(pos)
+
+        joints = self._joint_state_as_list(j, side)
+        # except ValueError:
+        #     self.logger.error('Bad joint states')
+        #     return None, None
 
 
         
@@ -275,6 +275,7 @@ class ArmKinematicsService(Node):
             # apply a scaling for the command
             v,ok=self.scaling_factor_for_singularity(delta_x, u,s,vh, Jinv_svd, joints, jac_solver)
             delta_q*=v
+
             delta_q=np.array([delta_q.flat[i] for i,_ in enumerate(cmd.position)]) #why the f*ck I cannot flatten this one?
 
             #check the result velocity
@@ -413,7 +414,7 @@ class ArmKinematicsService(Node):
         #copy the current joint state
         cmd=JointState()
         for name, pos in zip(self.current_joint_states.name, self.current_joint_states.position):
-            if 'gripper' not in name:
+            if 'gripper' not in name and name in self.get_arm_joints_name(side=side):
                 cmd.name.append(name)
                 cmd.position.append(pos)
         
