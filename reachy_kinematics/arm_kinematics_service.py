@@ -48,7 +48,7 @@ class ArmKinematicsService(Node):
         self.lower_limits={}
         self.lower_singularity_threshold=25.0
         self.hard_stop_singularity_threshold=40.0
-        self.max_joints_vel=1.0*(1.0/50.0) #max delta_q assuming 1 rad/s and a 50Hz update... 
+        self.max_joints_vel=3.0*(1.0/50.0) #max delta_q assuming 1 rad/s and a 50Hz update... 
         
         #self.logger.warning('urdf: {}'.format(self.urdf))        
         for side in ('left', 'right'):
@@ -385,6 +385,18 @@ class ArmKinematicsService(Node):
         else:
             q0 = self.get_default_q0(side)
 
+
+
+        # #get current joints state
+        j = JointState()    
+        for name, pos in zip(self.current_joint_states.name, self.current_joint_states.position):
+            if 'gripper' not in name and name in self.get_arm_joints_name(side):
+                j.name.append(name)
+                j.position.append(pos)
+
+        joints = self._joint_state_as_list(j, side)
+
+
         M = np.eye(4)
         p = request.pose.position
         M[:3, 3] = p.x, p.y, p.z
@@ -393,9 +405,25 @@ class ArmKinematicsService(Node):
 
         res, J = inverse_kinematics(solver, q0, M, nb_joints)
 
+        delta_q=np.array(J)-np.array(joints)
+
+         #check the result velocity
+        if not self.check_joints_in_vel_limits(delta_q).any():
+            self.logger.warning("Trying to move outside joints vel limits! {}".format(delta_q))
+            delta_q=self.clip_joints_vel_limits(delta_q)
+            self.logger.warning("\tclipped vel {}".format(delta_q))
+
+        joints_goal=np.array(joints)+delta_q
+
+        # check the angle limits 
+        if not self.check_joints_in_limits(joints_goal, side).any():
+            self.logger.warning("Trying to move outside joints limits! {} ({} {})".format(joints_goal,self.lower_limits[side], self.upper_limits[side]))
+            joints_goal=self.clip_joints_limits(joints_goal,side)
+
+
         response.success = True
         response.joint_position.name = self.get_arm_joints_name(side)
-        response.joint_position.position = list(J)
+        response.joint_position.position = list(joints_goal)
 
         return response
 
