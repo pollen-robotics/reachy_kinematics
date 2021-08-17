@@ -16,7 +16,7 @@ def generate_solver(urdf_str: str):
     chains = {}
     fk_solvers = {}
     ik_solvers = {}
-    jac_solvers = {}
+
     for side in ['left', 'right']:
         chains[side] = urdf_tree.getChain('torso', f'{side}_tip')
         fk_solvers[side] = kdl.ChainFkSolverPos_recursive(chains[side])
@@ -27,46 +27,7 @@ def generate_solver(urdf_str: str):
             _maxiter=500,
             _eps_joints=1e-15,
         )
-        jac_solvers[side] = kdl.ChainJntToJacSolver(chains[side])
-    return chains, fk_solvers, ik_solvers, jac_solvers, urdf_tree
-
-
-def kdl_to_mat(data: kdl.Jacobian) -> np.ndarray:
-    mat = np.mat(np.zeros((data.rows(), data.columns())))
-    for i in range(data.rows()):
-        for j in range(data.columns()):
-            mat[i, j] = data[i, j]
-    return mat
-
-
-def orientation_difference(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
-    """
-    like in Euler representation
-    """
-    diff = np.array(q1) - np.array(q2)
-    diff_mod = np.mod(diff, 2 * np.pi)
-    diff_alt = diff_mod - 2 * np.pi
-    return diff
-
-
-def get_jacobian(joint_values: np.ndarray, solver) -> kdl.Jacobian:
-    """
-    joint_values: list of joints values for the considered arm
-    solver: ChainJntToJacSolver
-    The Jacobian will be 6xN dimension
-    """
-    jacobian = kdl.Jacobian(len(joint_values))
-    kdl.SetToZero(jacobian)
-    Q = kdl.JntArray(len(joint_values))
-    for i, j in enumerate(joint_values):
-        Q[i] = j
-
-    solver.JntToJac(Q, jacobian)
-    return kdl_to_mat(jacobian)
-
-
-def jacobian_pseudo_inverse(joint_values: np.ndarray, solver) -> np.ndarray:
-    return np.linalg.pinv(get_jacobian(joint_values, solver))
+    return chains, fk_solvers, ik_solvers, urdf_tree
 
 
 def forward_kinematics(fk_solver, joints: np.ndarray, nb_joints: int) -> Tuple[float, np.ndarray]:
