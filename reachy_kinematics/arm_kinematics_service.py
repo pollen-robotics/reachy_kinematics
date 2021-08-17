@@ -80,9 +80,11 @@ class ArmKinematicsService(Node):
         self.logger.info('Node ready!')
 
     def get_chain_joint_names(self, end_link: str, links=False, fixed=False):
+        """Get name of each joints from torso to specfied end link."""
         return self.urdf_model.get_chain('torso', end_link, links=links, fixed=fixed)
 
     def get_limits(self, urdf, side: str) -> Tuple[np.ndarray, np.ndarray]:
+        """Get all joints limits from the urdf."""
         # adapted from pykdl_utils
         # record joint information in easy-to-use lists
         joint_limits_lower = []
@@ -113,24 +115,29 @@ class ArmKinematicsService(Node):
         return joint_limits_lower, joint_limits_upper
 
     def check_joints_in_limits(self, q: np.ndarray, side: str) -> np.ndarray:
+        """Check if the given solution is within the joints limits."""
         lower_lim = np.minimum(self.lower_limits[side], self.upper_limits[side])
         upper_lim = np.maximum(self.lower_limits[side], self.upper_limits[side])
 
         return np.all([q >= lower_lim, q <= upper_lim], 0)
 
     def clip_joints_limits(self, q: np.ndarray, side: str) -> np.ndarray:
+        """Clip the given solution within the joints limits."""
         lower_lim = np.minimum(self.lower_limits[side], self.upper_limits[side])
         upper_lim = np.maximum(self.lower_limits[side], self.upper_limits[side])
 
         return np.clip(q, lower_lim, upper_lim)
 
     def check_joints_in_vel_limits(self, dq: np.ndarray) -> np.ndarray:
+        """Check if the given velocity is within the authorized limits."""
         return np.all([dq >= -self.max_joints_vel, dq <= self.max_joints_vel], 0)
 
     def clip_joints_vel_limits(self, dq: np.ndarray) -> np.ndarray:
+        """Clip the given velocity solution  within the velocity limits."""
         return np.clip(dq, -self.max_joints_vel, self.max_joints_vel)
 
     def joint_states_cb(self, states: JointState) -> None:
+        """Get latest joint states."""
         self.current_joint_states = states
 
     def arm_fk(self, request: GetArmFK.Request, response: GetArmFK.Response, side: str, solver, nb_joints: int) -> GetArmFK.Response:
