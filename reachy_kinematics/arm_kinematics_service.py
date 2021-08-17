@@ -63,7 +63,7 @@ class ArmKinematicsService(Node):
             )
             self.logger.info(f'Starting service "{srv.srv_name}".')
 
-            up, lo = self.get_limits(self.urdf_model,side)
+            up, lo = self.get_limits(self.urdf_model, side)
             self.upper_limits[side] = up
             self.lower_limits[side] = lo
 
@@ -81,11 +81,9 @@ class ArmKinematicsService(Node):
         self.logger.info('Node ready!')
 
     def get_chain_joint_names(self, end_link: str, links=False, fixed=False):
-         return self.urdf_model.get_chain('torso', end_link,
-                                    links=links, fixed=fixed)
+         return self.urdf_model.get_chain('torso', end_link, links=links, fixed=fixed)
         
     def get_limits(self, urdf, side: str) -> Tuple[np.ndarray, np.ndarray]:
-
         # adapted from pykdl_utils
         # record joint information in easy-to-use lists
         joint_limits_lower = []
@@ -174,8 +172,7 @@ class ArmKinematicsService(Node):
             response.success = False
             return response
 
-        res, M = forward_kinematics(
-            solver, request.joint_position.position, nb_joints)
+        res, M = forward_kinematics(solver, request.joint_position.position, nb_joints)
         q = Rotation.from_matrix(M[:3, :3]).as_quat()
 
         response.success = True
@@ -209,7 +206,6 @@ class ArmKinematicsService(Node):
 
         joints = self._joint_state_as_list(j, side)
 
-
         M = np.eye(4)
         p = request.pose.position
         M[:3, 3] = p.x, p.y, p.z
@@ -239,48 +235,6 @@ class ArmKinematicsService(Node):
         response.joint_position.position = list(joints_goal)
 
         return response
-
-
-
-    def arm_ik_safe(self, request: GetArmIK.Request, response: GetArmIK.Response, side: str, fk_solver, jac_solver, nb_joints: int) -> GetArmIK.Response:
-        """Compute the inverse arm kinematics given the request."""
-
-        # #get current joints state
-
-        joints, pose0 = self.get_current_state(side, fk_solver)
-        if joints is None or pose0 is None:
-            self.logger.error('Aborting')
-            return
-
-        #copy the current joint state
-        cmd=JointState()
-        for name, pos in zip(self.current_joint_states.name, self.current_joint_states.position):
-            if 'gripper' not in name and name in self.get_arm_joints_name(side=side):
-                cmd.name.append(name)
-                cmd.position.append(pos)
-        
-
-        #goal pos
-        pose1 = kdl.Frame()
-        pose1.p = kdl.Vector(request.pose.position.x,request.pose.position.y,request.pose.position.z)
-        R1 = Rotation.from_quat((request.pose.orientation.x, request.pose.orientation.y, request.pose.orientation.z, request.pose.orientation.w)).as_matrix()
-        R1=R1.flatten().tolist()
-        pose1.M=kdl.Rotation(*R1)
-
-        #delta of the pose
-        delta_x=kdl.diff(pose0,pose1,1)
-                
-        delta_x=np.array([delta_x.vel.x(),delta_x.vel.y(),delta_x.vel.z(),delta_x.rot.x(),delta_x.rot.y(),delta_x.rot.z()])
-        
-
-        cmd,ok=self.safe_ik(cmd,delta_x,joints,side,jac_solver)
-        self.logger.info("SAFE IK : {}".format(cmd))        
-        response.success = ok
-        response.joint_position=cmd
-
-        return response
-
-
     
     def get_arm_joints_name(self, side: str) -> List[str]:
         """Return the list of joints name for the specified arm."""
@@ -311,6 +265,7 @@ class ArmKinematicsService(Node):
 
         if joint_state.name:
             positions = [0.0] * len(joint_names)
+
             for name, pos in zip(joint_state.name, joint_state.position):
                 positions[joint_names.index(name)] = pos
             return positions
