@@ -10,8 +10,6 @@ import numpy as np
 
 from scipy.spatial.transform import Rotation
 
-import PyKDL as kdl
-
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile
