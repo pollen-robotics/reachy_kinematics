@@ -66,7 +66,7 @@ class ArmKinematicsService(Node):
             self.upper_limits[side] = up
             self.lower_limits[side] = lo
 
-        self.logger.info('Found angle limits: {} {}'.format(self.upper_limits, self.lower_limits))
+        self.logger.info('Found angle limits, lower: {} upper: {}'.format(self.lower_limits, self.upper_limits))
 
         self.current_joint_states = None
         sub = self.create_subscription(
