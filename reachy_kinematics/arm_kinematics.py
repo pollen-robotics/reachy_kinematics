@@ -27,6 +27,7 @@ def generate_solver(urdf_str: str):
             _maxiter=500,
             _eps_joints=1e-15,
         )
+
     return chains, fk_solvers, ik_solvers
 
 

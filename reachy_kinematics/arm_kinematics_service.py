@@ -10,12 +10,13 @@ import numpy as np
 
 from scipy.spatial.transform import Rotation
 
+import PyKDL as kdl
+
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile
-import PyKDL as kdl
 
-from geometry_msgs.msg import Point, Quaternion, Pose
+from geometry_msgs.msg import Point, Quaternion
 from sensor_msgs.msg import JointState
 from std_msgs.msg import String
 
@@ -51,16 +52,14 @@ class ArmKinematicsService(Node):
             srv = self.create_service(
                 srv_type=GetArmFK,
                 srv_name=f'/{side}_arm/kinematics/forward',
-                callback=partial(
-                    self.arm_fk, side=side, solver=fk_solvers[side], nb_joints=chains[side].getNrOfJoints()),
+                callback=partial(self.arm_fk, side=side, solver=fk_solvers[side], nb_joints=chains[side].getNrOfJoints()),
             )
             self.logger.info(f'Starting service "{srv.srv_name}".')
 
             srv = self.create_service(
                 srv_type=GetArmIK,
                 srv_name=f'/{side}_arm/kinematics/inverse',
-                callback=partial(
-                    self.arm_ik, side=side, solver=ik_solvers[side], nb_joints=chains[side].getNrOfJoints()),
+                callback=partial(self.arm_ik, side=side, solver=ik_solvers[side], nb_joints=chains[side].getNrOfJoints()),
             )
             self.logger.info(f'Starting service "{srv.srv_name}".')
 
@@ -68,21 +67,18 @@ class ArmKinematicsService(Node):
             self.upper_limits[side] = up
             self.lower_limits[side] = lo
 
-        sub = self.create_subscription(
-            JointState,
-            'joint_states',
-            self.joint_states_cb,
-            10)
+        self.logger.info('Found angle limits: {} {}'.format(self.upper_limits, self.lower_limits))
 
-        self.goal_publisher = self.create_publisher(
-            JointState, 'joint_goals', 1)
         self.current_joint_states = None
-
-
-        self.logger.warning('limits: {} {}'.format(self.upper_limits, self.lower_limits))
+        sub = self.create_subscription(
+            msg_type=JointState,
+            topic='joint_states',
+            callback=self.joint_states_cb,
+            qos_profile=5,
+        )
+        self.logger.info(f'Subscribe to topic "{sub.topic_name}".')
         
         self.logger.info('Node ready!')
-
 
     def get_chain_joint_names(self, end_link: str, links=False, fixed=False):
          return self.urdf_model.get_chain('torso', end_link,
