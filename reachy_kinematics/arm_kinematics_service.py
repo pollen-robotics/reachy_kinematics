@@ -139,26 +139,6 @@ class ArmKinematicsService(Node):
     
     def joint_states_cb(self, states: JointState) -> None:
         self.current_joint_states = states
-
-    def get_current_state(self, side: str, fk_solver) -> Tuple[List[float], kdl.Frame]:
-        j = JointState()
-
-        for name, pos in zip(self.current_joint_states.name, self.current_joint_states.position):
-            if 'gripper' not in name and name in self.get_arm_joints_name(side):
-                j.name.append(name)
-                j.position.append(pos)
-
-        joints = self._joint_state_as_list(j, side)
-        
-        res, M = forward_kinematics(fk_solver, joints, len(joints))
-        R = M[:3, :3].flatten().tolist()
-
-        # Current pose
-        pose0 = kdl.Frame()
-        pose0.p = kdl.Vector(M[0, 3], M[1, 3], M[2, 3])
-        pose0.M = kdl.Rotation(*R)
-
-        return joints, pose0
         
     def arm_fk(self, request: GetArmFK.Request, response: GetArmFK.Response, side: str, solver, nb_joints: int) -> GetArmFK.Response:
         """Compute the forward arm kinematics given the request."""
