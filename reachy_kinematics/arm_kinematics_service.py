@@ -40,7 +40,7 @@ class ArmKinematicsService(Node):
         self.logger = self.get_logger()
 
         self.retrieve_urdf()
-        chains, fk_solvers, ik_solvers, self.kdl_tree = generate_solver(self.urdf)
+        chains, fk_solvers, ik_solvers = generate_solver(self.urdf)
 
         self.urdf_model = urdf.URDF.from_xml_string(self.urdf)
         self.upper_limits = {}

@@ -27,7 +27,7 @@ def generate_solver(urdf_str: str):
             _maxiter=500,
             _eps_joints=1e-15,
         )
-    return chains, fk_solvers, ik_solvers, urdf_tree
+    return chains, fk_solvers, ik_solvers
 
 
 def forward_kinematics(fk_solver, joints: np.ndarray, nb_joints: int) -> Tuple[float, np.ndarray]:
