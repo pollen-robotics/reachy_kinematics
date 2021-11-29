@@ -21,10 +21,6 @@ def generate_launch_description():
         ),
         Node(
             package='reachy_kinematics',
-            executable='orbita_kinematics_service',
-        ),
-        Node(
-            package='reachy_kinematics',
             executable='arm_kinematics_service',
         ),
     ])

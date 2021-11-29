@@ -4,9 +4,9 @@ Wants=network-online.target
 After=network.target network-online.target
 [Service]
 PIDFile=/var/run/reachy_kinematics.pid
-ExecStart=/usr/bin/bash /home/nuc/reachy_ws/src/reachy_kinematics/reachy_kinematics.bash
-User=nuc
-Group=nuc
+ExecStart=/usr/bin/bash /home/reachy/reachy_ws/src/reachy_kinematics/reachy_kinematics.bash
+User=reachy
+Group=reachy
 Type=simple
 [Install]
 WantedBy=multi-user.target
