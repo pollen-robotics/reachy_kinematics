@@ -36,15 +36,10 @@ sudo apt install python3-pykdl
 
 * **/right_arm/kinematics/inverse** ([reachy_msgs/srv/GetArmIK.srv](https://github.com/pollen-robotics/reachy_msgs/blob/master/srv/GetArmIK.srv)) - Compute the inverse kinematics for the requested joint pose in a right arm kinematic chain. Returns the joints goal positions to reachy the joint pose.
 
-* **/orbita/kinematics/inverse** ([reachy_msgs/srv/GetOrbitaIK.srv](https://github.com/pollen-robotics/reachy_msgs/blob/master/srv/GetOrbitaIK.srv)) - Compute the inverse kinematics for the Orbita actuator. Returns the disks goal positions for the requested quaternion.
-
-* **/orbita/kinematics/look_vector_to_quaternion** ([reachy_msgs/srv/GetQuaternionTransform.srv](https://github.com/pollen-robotics/reachy_msgs/blob/master/srv/GetQuaternionTransform.srv)) - Compute the quaternion corresponding to the target point in the look at instruction. 
-
 ## Launch files
 
 * **description.launch.py** - Publish Reachy's urdf in /robot_description, needed by the arm kinematics solver.
 * **arm_kinematics.launch.py** - Launch the two kinematics services for Reachy's arms.
-* **orbita_kinematics_service.launch.py** - Launch the two kinematics services for Orbita.
 * **kinematics.launch.py** - Start the three launch files at once.
 
 ---
