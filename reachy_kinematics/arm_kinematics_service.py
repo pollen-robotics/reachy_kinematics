@@ -4,7 +4,7 @@ See README.md for details on the services exposed.
 
 """
 from functools import partial
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 
@@ -21,6 +21,7 @@ from std_msgs.msg import String
 from reachy_msgs.srv import GetArmFK, GetArmIK
 
 from .arm_kinematics import generate_solver, forward_kinematics, inverse_kinematics
+from .urdf_parser_py import urdf
 
 
 class ArmKinematicsService(Node):
@@ -41,6 +42,11 @@ class ArmKinematicsService(Node):
         self.retrieve_urdf()
         chains, fk_solvers, ik_solvers = generate_solver(self.urdf)
 
+        self.urdf_model = urdf.URDF.from_xml_string(self.urdf)
+        self.upper_limits = {}
+        self.lower_limits = {}
+        self.max_joints_vel = 3.0 * (1.0 / 50.0)  # max delta_q assuming 1 rad/s and a 50Hz update...
+
         for side in ('left', 'right'):
             srv = self.create_service(
                 srv_type=GetArmFK,
@@ -56,7 +62,83 @@ class ArmKinematicsService(Node):
             )
             self.logger.info(f'Starting service "{srv.srv_name}".')
 
+            up, lo = self.get_limits(self.urdf_model, side)
+            self.upper_limits[side] = up
+            self.lower_limits[side] = lo
+
+        self.logger.info('Found angle limits, lower: {} upper: {}'.format(self.lower_limits, self.upper_limits))
+
+        self.current_joint_states = None
+        sub = self.create_subscription(
+            msg_type=JointState,
+            topic='joint_states',
+            callback=self.joint_states_cb,
+            qos_profile=5,
+        )
+        self.logger.info(f'Subscribe to topic "{sub.topic_name}".')
+
         self.logger.info('Node ready!')
+
+    def get_chain_joint_names(self, end_link: str, links=False, fixed=False):
+        """Get name of each joints from torso to specfied end link."""
+        return self.urdf_model.get_chain('torso', end_link, links=links, fixed=fixed)
+
+    def get_limits(self, urdf, side: str) -> Tuple[np.ndarray, np.ndarray]:
+        """Get all joints limits from the urdf."""
+        # adapted from pykdl_utils
+        # record joint information in easy-to-use lists
+        joint_limits_lower = []
+        joint_limits_upper = []
+
+        joint_types = []
+        chain = self.get_chain_joint_names(f'{side}_tip')
+        self.logger.warning('chain: {}'.format(chain))
+        for jnt_name in chain:
+            jnt = urdf.joint_map[jnt_name]
+            if jnt.limit is not None:
+                joint_limits_lower.append(jnt.limit.lower)
+                joint_limits_upper.append(jnt.limit.upper)
+            else:
+                joint_limits_lower.append(None)
+                joint_limits_upper.append(None)
+
+            joint_types.append(jnt.joint_type)
+
+        def replace_none(x, v):
+            if x is None:
+                return v
+            return x
+
+        joint_limits_lower = np.array([replace_none(jl, -np.inf) for jl in joint_limits_lower])
+        joint_limits_upper = np.array([replace_none(jl, np.inf) for jl in joint_limits_upper])
+
+        return joint_limits_lower, joint_limits_upper
+
+    def check_joints_in_limits(self, q: np.ndarray, side: str) -> np.ndarray:
+        """Check if the given solution is within the joints limits."""
+        lower_lim = np.minimum(self.lower_limits[side], self.upper_limits[side])
+        upper_lim = np.maximum(self.lower_limits[side], self.upper_limits[side])
+
+        return np.all([q >= lower_lim, q <= upper_lim], 0)
+
+    def clip_joints_limits(self, q: np.ndarray, side: str) -> np.ndarray:
+        """Clip the given solution within the joints limits."""
+        lower_lim = np.minimum(self.lower_limits[side], self.upper_limits[side])
+        upper_lim = np.maximum(self.lower_limits[side], self.upper_limits[side])
+
+        return np.clip(q, lower_lim, upper_lim)
+
+    def check_joints_in_vel_limits(self, dq: np.ndarray) -> np.ndarray:
+        """Check if the given velocity is within the authorized limits."""
+        return np.all([dq >= -self.max_joints_vel, dq <= self.max_joints_vel], 0)
+
+    def clip_joints_vel_limits(self, dq: np.ndarray) -> np.ndarray:
+        """Clip the given velocity solution  within the velocity limits."""
+        return np.clip(dq, -self.max_joints_vel, self.max_joints_vel)
+
+    def joint_states_cb(self, states: JointState) -> None:
+        """Get latest joint states."""
+        self.current_joint_states = states
 
     def arm_fk(self, request: GetArmFK.Request, response: GetArmFK.Response, side: str, solver, nb_joints: int) -> GetArmFK.Response:
         """Compute the forward arm kinematics given the request."""
@@ -95,6 +177,15 @@ class ArmKinematicsService(Node):
         else:
             q0 = self.get_default_q0(side)
 
+        # Get current joints state
+        j = JointState()
+        for name, pos in zip(self.current_joint_states.name, self.current_joint_states.position):
+            if 'gripper' not in name and name in self.get_arm_joints_name(side):
+                j.name.append(name)
+                j.position.append(pos)
+
+        joints = self._joint_state_as_list(j, side)
+
         M = np.eye(4)
         p = request.pose.position
         M[:3, 3] = p.x, p.y, p.z
@@ -103,9 +194,24 @@ class ArmKinematicsService(Node):
 
         res, J = inverse_kinematics(solver, q0, M, nb_joints)
 
+        delta_q = np.array(J) - np.array(joints)
+
+        # Check the result velocity
+        if not self.check_joints_in_vel_limits(delta_q).any():
+            self.logger.warning("Trying to move outside joints vel limits! {}".format(delta_q))
+            delta_q = self.clip_joints_vel_limits(delta_q)
+            self.logger.warning("\tclipped vel {}".format(delta_q))
+
+        joints_goal = np.array(joints) + delta_q
+
+        # check the angle limits
+        if not self.check_joints_in_limits(joints_goal, side).any():
+            self.logger.warning("Trying to move outside joints limits! {} ({} {})".format(joints_goal, self.lower_limits[side], self.upper_limits[side]))
+            joints_goal = self.clip_joints_limits(joints_goal, side)
+
         response.success = True
         response.joint_position.name = self.get_arm_joints_name(side)
-        response.joint_position.position = list(J)
+        response.joint_position.position = list(joints_goal)
 
         return response
 
